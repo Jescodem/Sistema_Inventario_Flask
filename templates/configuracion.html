@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Configuración | Inventario{% endblock %}
+
+{% block content %}
+<h4 class="mb-4 mt-2">Gestión de Catálogos (CRUD)</h4>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-secondary text-white fw-bold">Categorías</div>
+            <div class="card-body p-2">
+                <form action="/configuracion" method="POST" class="d-flex mb-3">
+                    <input type="hidden" name="tipo" value="categoria">
+                    <input type="text" class="form-control form-control-sm me-2" name="nombre" placeholder="Nueva..." required>
+                    <button type="submit" class="btn btn-sm btn-success">+</button>
+                </form>
+                <ul class="list-group list-group-flush">
+                    {% for cat in categorias %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-1">
+                        <small>{{ cat.nombre }}</small>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary py-0 px-1" data-bs-toggle="modal" data-bs-target="#editCatModal{{ cat.id }}">✎</button>
+                            <form action="/eliminar_catalogo/categoria/{{ cat.id }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="return confirm('¿Eliminar?')">🗑️</button>
+                            </form>
+                        </div>
+                    </li>
+                    <div class="modal fade" id="editCatModal{{ cat.id }}" tabindex="-1"><div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content"><form action="/editar_catalogo/categoria/{{ cat.id }}" method="POST"><div class="modal-body"><label class="form-label fw-bold">Editar Categoría</label><input type="text" class="form-control" name="nuevo_nombre" value="{{ cat.nombre }}" required></div><div class="modal-footer p-1"><button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-sm btn-primary">Guardar</button></div></form></div></div></div>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-secondary text-white fw-bold">Marcas</div>
+            <div class="card-body p-2">
+                <form action="/configuracion" method="POST" class="d-flex mb-3">
+                    <input type="hidden" name="tipo" value="marca">
+                    <input type="text" class="form-control form-control-sm me-2" name="nombre" placeholder="Nueva..." required>
+                    <button type="submit" class="btn btn-sm btn-success">+</button>
+                </form>
+                <ul class="list-group list-group-flush">
+                    {% for marca in marcas %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-1">
+                        <small>{{ marca.nombre }}</small>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary py-0 px-1" data-bs-toggle="modal" data-bs-target="#editMarcaModal{{ marca.id }}">✎</button>
+                            <form action="/eliminar_catalogo/marca/{{ marca.id }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="return confirm('¿Eliminar?')">🗑️</button>
+                            </form>
+                        </div>
+                    </li>
+                    <div class="modal fade" id="editMarcaModal{{ marca.id }}" tabindex="-1"><div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content"><form action="/editar_catalogo/marca/{{ marca.id }}" method="POST"><div class="modal-body"><label class="form-label fw-bold">Editar Marca</label><input type="text" class="form-control" name="nuevo_nombre" value="{{ marca.nombre }}" required></div><div class="modal-footer p-1"><button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-sm btn-primary">Guardar</button></div></form></div></div></div>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-success text-white fw-bold">Modelos</div>
+            <div class="card-body p-2">
+                <form action="/configuracion" method="POST" class="d-flex mb-3">
+                    <input type="hidden" name="tipo" value="modelo">
+                    <input type="text" class="form-control form-control-sm me-2" name="nombre" placeholder="Nuevo..." required>
+                    <button type="submit" class="btn btn-sm btn-success">+</button>
+                </form>
+                <ul class="list-group list-group-flush">
+                    {% for modelo in modelos %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-1">
+                        <small>{{ modelo.nombre }}</small>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary py-0 px-1" data-bs-toggle="modal" data-bs-target="#editModeloModal{{ modelo.id }}">✎</button>
+                            <form action="/eliminar_catalogo/modelo/{{ modelo.id }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="return confirm('¿Eliminar?')">🗑️</button>
+                            </form>
+                        </div>
+                    </li>
+                    <div class="modal fade" id="editModeloModal{{ modelo.id }}" tabindex="-1"><div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content"><form action="/editar_catalogo/modelo/{{ modelo.id }}" method="POST"><div class="modal-body"><label class="form-label fw-bold">Editar Modelo</label><input type="text" class="form-control" name="nuevo_nombre" value="{{ modelo.nombre }}" required></div><div class="modal-footer p-1"><button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-sm btn-primary">Guardar</button></div></form></div></div></div>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white fw-bold">Cargos / Roles</div>
+            <div class="card-body p-2">
+                <form action="/configuracion" method="POST" class="d-flex mb-3">
+                    <input type="hidden" name="tipo" value="cargo">
+                    <input type="text" class="form-control form-control-sm me-2" name="nombre" placeholder="Nuevo..." required>
+                    <button type="submit" class="btn btn-sm btn-success">+</button>
+                </form>
+                <ul class="list-group list-group-flush">
+                    {% for cargo in cargos %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-1">
+                        <small>{{ cargo.nombre }}</small>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary py-0 px-1" data-bs-toggle="modal" data-bs-target="#editCargoModal{{ cargo.id }}">✎</button>
+                            <form action="/eliminar_catalogo/cargo/{{ cargo.id }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="return confirm('¿Eliminar?')">🗑️</button>
+                            </form>
+                        </div>
+                    </li>
+                    <div class="modal fade" id="editCargoModal{{ cargo.id }}" tabindex="-1"><div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content"><form action="/editar_catalogo/cargo/{{ cargo.id }}" method="POST"><div class="modal-body"><label class="form-label fw-bold">Editar Cargo</label><input type="text" class="form-control" name="nuevo_nombre" value="{{ cargo.nombre }}" required></div><div class="modal-footer p-1"><button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-sm btn-primary">Guardar</button></div></form></div></div></div>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100 border-info">
+            <div class="card-header bg-info text-white fw-bold">Edificios / Obras</div>
+            <div class="card-body p-2">
+                <form action="/configuracion" method="POST" class="d-flex mb-3">
+                    <input type="hidden" name="tipo" value="edificio">
+                    <input type="text" class="form-control form-control-sm me-2" name="nombre" placeholder="Nuevo edificio..." required>
+                    <button type="submit" class="btn btn-sm btn-success">+</button>
+                </form>
+                <ul class="list-group list-group-flush">
+                    {% for e in edificios %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-1">
+                        <small>{{ e.nombre }}</small>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary py-0 px-1" data-bs-toggle="modal" data-bs-target="#editEdificioModal{{ e.id }}">✎</button>
+                            <form action="/eliminar_catalogo/edificio/{{ e.id }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="return confirm('¿Eliminar?')">🗑️</button>
+                            </form>
+                        </div>
+                    </li>
+                    <div class="modal fade" id="editEdificioModal{{ e.id }}" tabindex="-1"><div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content"><form action="/editar_catalogo/edificio/{{ e.id }}" method="POST"><div class="modal-body"><label class="form-label fw-bold">Editar Edificio</label><input type="text" class="form-control" name="nuevo_nombre" value="{{ e.nombre }}" required></div><div class="modal-footer p-1"><button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-sm btn-primary">Guardar</button></div></form></div></div></div>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

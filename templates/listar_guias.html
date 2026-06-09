@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Guías Generadas{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+
+            <h2 class="fw-bold mb-1">
+                📋 Guías Generadas
+            </h2>
+
+            <p class="text-muted mb-0">
+                Historial de entregas de materiales y equipos
+            </p>
+
+        </div>
+
+        <a href="/guias" class="btn btn-success">
+
+            ➕ Nueva Guía
+
+        </a>
+
+    </div>
+
+    <div class="card shadow-sm">
+
+        <div class="card-body">
+
+            {% if guias %}
+
+            <table class="table table-hover align-middle">
+
+                <thead class="table-light">
+
+                    <tr>
+
+                        <th>N°</th>
+                        <th>Solicitante</th>
+                        <th>Destino</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                        <th width="320">Acciones</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for guia in guias %}
+
+                    <tr>
+
+                        <td>
+
+                            <strong>#{{ guia.id }}</strong>
+
+                        </td>
+
+                        <td>
+
+                            {{ guia.personal }}
+
+                        </td>
+
+                        <td>
+
+                            {{ guia.destino }}
+
+                        </td>
+
+                        <td>
+
+                            {{ guia.fecha }}
+
+                        </td>
+
+                        <td>
+
+                            <span class="badge bg-success">
+
+                                {{ guia.estado }}
+
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            <a href="/guia/{{ guia.id }}" class="btn btn-sm btn-primary">
+
+                                👁 Ver
+
+                            </a>
+
+                            <a href="/editar_guia/{{ guia.id }}" class="btn btn-sm btn-warning">
+
+                                ✏️ Editar
+
+                            </a>
+
+                            <a href="/eliminar_guia/{{ guia.id }}" class="btn btn-sm btn-danger"
+                                onclick="return confirm('¿Eliminar esta guía?')">
+
+                                🗑 Eliminar
+
+                            </a>
+
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+            {% else %}
+
+            <div class="text-center py-5">
+
+                <h5 class="text-muted">
+
+                    No existen guías registradas
+
+                </h5>
+
+                <a href="/guias" class="btn btn-success mt-3">
+
+                    Crear primera guía
+
+                </a>
+
+            </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

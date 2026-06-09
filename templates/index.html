@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Inventario CCTV{% endblock %}
+
+{% block content %}
+
+<div class="py-4">
+
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="fw-bold mb-1">
+                Dashboard de Inventario
+            </h2>
+
+            <p class="text-muted mb-0">
+                Control de equipos, materiales y activos tecnológicos
+            </p>
+        </div>
+
+        <a href="/ingresos" class="btn btn-success">
+            Nuevo Ingreso
+        </a>
+
+    </div>
+
+    <!-- Indicadores -->
+    <div class="row g-4 mb-4">
+
+        <div class="col-lg-4">
+
+            <div class="card h-100 border-0 shadow-sm">
+
+                <div class="card-body">
+
+                    <small class="text-muted text-uppercase">
+                        Total en Stock
+                    </small>
+
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+
+                        <h1 class="fw-bold text-primary mb-0">
+                            {{ total_stock }}
+                        </h1>
+
+                        <span class="fs-2 text-primary">
+                            📦
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-4">
+
+            <div class="card h-100 border-0 shadow-sm">
+
+                <div class="card-body">
+
+                    <small class="text-muted text-uppercase">
+                        En Revisión Técnica
+                    </small>
+
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+
+                        <h1 class="fw-bold text-warning mb-0">
+                            {{ en_revision }}
+                        </h1>
+
+                        <span class="fs-2 text-warning">
+                            🔧
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-4">
+
+            <div class="card h-100 border-0 shadow-sm">
+
+                <div class="card-body">
+
+                    <small class="text-muted text-uppercase">
+                        Stock Crítico
+                    </small>
+
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+
+                        <div>
+                            <h1 class="fw-bold text-danger mb-0">
+                                {{ critico }}
+                            </h1>
+
+                            <small class="text-muted">
+                                Consumibles
+                            </small>
+                        </div>
+
+                        <span class="fs-2 text-danger">
+                            ⚠
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Filtros -->
+    <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-header bg-white border-bottom">
+
+            <h6 class="fw-semibold mb-0">
+                Filtros de búsqueda
+            </h6>
+
+        </div>
+
+        <div class="card-body">
+
+            <form method="GET" action="/" class="row g-3">
+
+                <div class="col-lg-4">
+
+                    <input type="text"
+                        class="form-control"
+                        name="q"
+                        value="{{ search_query }}"
+                        placeholder="Buscar por SKU, serie o descripción">
+
+                </div>
+
+                <div class="col-lg-3">
+
+                    <select class="form-select" name="categoria">
+
+                        <option value="">
+                            Todas las categorías
+                        </option>
+
+                        {% for cat in categorias_db %}
+                        <option value="{{ cat.nombre }}"
+                            {% if categoria_filter == cat.nombre %}selected{% endif %}>
+                            {{ cat.nombre }}
+                        </option>
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+                <div class="col-lg-3">
+
+                    <select class="form-select" name="estado">
+
+                        <option value="">
+                            Todos los estados
+                        </option>
+
+                        <option value="En Stock"
+                            {% if estado_filter == 'En Stock' %}selected{% endif %}>
+                            En Stock
+                        </option>
+
+                        <option value="En Revisión"
+                            {% if estado_filter == 'En Revisión' %}selected{% endif %}>
+                            En Revisión
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <div class="col-lg-2 d-grid">
+
+                    <button class="btn btn-primary">
+                        Buscar
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+    <!-- Inventario -->
+    <div class="card border-0 shadow-sm">
+
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+
+            <div>
+
+                <h5 class="fw-semibold mb-0">
+                    Inventario Actual
+                </h5>
+
+            </div>
+
+            <span class="badge bg-primary">
+                {{ equipos|length }} registros
+            </span>
+
+        </div>
+
+        <div class="card-body p-0">
+
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle mb-0">
+
+                    <thead class="table-light">
+
+                        <tr>
+
+                            <th>ID</th>
+                            <th>SKU / Serie</th>
+                            <th>Equipo</th>
+                            <th>Categoría</th>
+                            <th>Cantidad</th>
+                            <th>Estado</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for equipo in equipos %}
+
+                        <tr>
+
+                            <td class="fw-semibold text-secondary">
+                                #{{ equipo.id }}
+                            </td>
+
+                            <td>
+                                {{ equipo.sku if equipo.sku else '-' }}
+                            </td>
+
+                            <td>
+
+                                <div class="fw-semibold">
+                                    {{ equipo.marca }}
+                                </div>
+
+                                <small class="text-muted">
+                                    {{ equipo.descripcion }}
+                                </small>
+
+                                {% if equipo.mac %}
+                                <br>
+                                <small class="text-secondary">
+                                    MAC: {{ equipo.mac }}
+                                </small>
+                                {% endif %}
+
+                            </td>
+
+                            <td>
+
+                                <span class="badge bg-light text-dark border">
+                                    {{ equipo.categoria }}
+                                </span>
+
+                            </td>
+
+                            <td class="fw-bold">
+                                {{ equipo.cantidad }}
+                            </td>
+
+                            <td>
+
+                                {% if equipo.estado == 'En Stock' %}
+
+                                <span class="badge bg-success">
+                                    {{ equipo.estado }}
+                                </span>
+
+                                {% elif equipo.estado == 'En Revisión' %}
+
+                                <span class="badge bg-warning text-dark">
+                                    {{ equipo.estado }}
+                                </span>
+
+                                {% else %}
+
+                                <span class="badge bg-secondary">
+                                    {{ equipo.estado }}
+                                </span>
+
+                                {% endif %}
+
+                            </td>
+
+                        </tr>
+
+                        {% else %}
+
+                        <tr>
+
+                            <td colspan="6"
+                                class="text-center py-5 text-muted">
+
+                                No existen registros para mostrar.
+
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

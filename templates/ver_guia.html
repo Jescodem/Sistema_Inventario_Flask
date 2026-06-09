@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}Guía #{{ guia.id }}{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid py-4">
+
+    <!-- ENCABEZADO -->
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+
+            <h2 class="fw-bold mb-1">
+                📋 Guía de Salida #{{ guia.id }}
+            </h2>
+
+            <p class="text-muted mb-0">
+                Detalle de materiales entregados
+            </p>
+
+        </div>
+
+        <div>
+
+            <a href="/listar_guias" class="btn btn-secondary">
+
+                ← Volver
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <!-- DATOS GENERALES -->
+
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-header bg-primary text-white">
+
+            Información General
+
+        </div>
+
+        <div class="card-body">
+
+            <div class="row">
+
+                <div class="col-md-4 mb-3">
+
+                    <label class="form-label fw-bold">
+                        Solicitante
+                    </label>
+
+                    <div class="form-control bg-light">
+
+                        {{ guia.personal }}
+
+                    </div>
+
+                </div>
+
+                <div class="col-md-4 mb-3">
+
+                    <label class="form-label fw-bold">
+                        Destino
+                    </label>
+
+                    <div class="form-control bg-light">
+
+                        {{ guia.destino }}
+
+                    </div>
+
+                </div>
+
+                <div class="col-md-4 mb-3">
+
+                    <label class="form-label fw-bold">
+                        Fecha
+                    </label>
+
+                    <div class="form-control bg-light">
+
+                        {{ guia.fecha }}
+
+                    </div>
+
+                </div>
+
+                <div class="col-12">
+
+                    <label class="form-label fw-bold">
+                        Observaciones
+                    </label>
+
+                    <div class="form-control bg-light" style="min-height:80px;">
+
+                        {% if guia.observaciones %}
+                        {{ guia.observaciones }}
+                        {% else %}
+                        Sin observaciones
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- DETALLE -->
+
+    <div class="card shadow-sm">
+
+        <div class="card-header bg-success text-white">
+
+            Productos Entregados
+
+        </div>
+
+        <div class="card-body">
+
+            {% if detalle %}
+
+            <table class="table table-hover align-middle">
+
+                <thead class="table-light">
+
+                    <tr>
+
+                        <th width="120">
+                            Cantidad
+                        </th>
+
+                        <th>
+                            Marca
+                        </th>
+
+                        <th>
+                            Descripción
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for item in detalle %}
+
+                    <tr>
+
+                        <td>
+
+                            <span class="badge bg-primary fs-6">
+
+                                {{ item.cantidad }}
+
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            {{ item.marca }}
+
+                        </td>
+
+                        <td>
+
+                            {{ item.descripcion }}
+
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+            {% else %}
+
+            <div class="alert alert-warning">
+
+                Esta guía no tiene productos registrados.
+
+            </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+    <!-- BOTONES -->
+
+    <div class="mt-4 d-flex gap-2">
+
+        <a href="/editar_guia/{{ guia.id }}" class="btn btn-warning">
+
+            ✏️ Editar
+
+        </a>
+
+        <a href="/eliminar_guia/{{ guia.id }}" class="btn btn-danger" onclick="return confirm(
+       'Esta acción devolverá el stock al inventario. ¿Desea continuar?'
+   )">Eliminar 🗑️</a>
+
+        <a href="/pdf_guia/{{ guia.id }}" target="_blank" class="btn btn-success">
+
+            📄 Exportar PDF
+
+        </a>
+
+    </div>
+
+</div>
+
+{% endblock %}
