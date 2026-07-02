@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Avances y Notas | Portero Seguro{% endblock %}
+{% block content %}
+<div class="py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">📝 Avances y notas operativas</h2>
+            <p class="text-muted mb-0">Registro diario de actividades, solicitudes, avances técnicos, pendientes y observaciones.</p>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="card metric-card"><div class="card-body"><small class="text-muted">Total notas</small><h2 class="mb-0 text-primary">{{ resumen.total }}</h2></div></div></div>
+        <div class="col-md-3"><div class="card metric-card"><div class="card-body"><small class="text-muted">Registradas hoy</small><h2 class="mb-0 text-warning">{{ resumen.hoy }}</h2></div></div></div>
+        <div class="col-md-3"><div class="card metric-card"><div class="card-body"><small class="text-muted">En proceso</small><h2 class="mb-0 text-secondary">{{ resumen.proceso }}</h2></div></div></div>
+        <div class="col-md-3"><div class="card metric-card"><div class="card-body"><small class="text-muted">Terminadas</small><h2 class="mb-0 text-success">{{ resumen.terminado }}</h2></div></div></div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white fw-bold">Registrar avance / nota</div>
+                <div class="card-body">
+                    <form method="POST" action="/avances">
+                        <div class="mb-3"><label class="form-label fw-semibold">Fecha</label><input type="date" class="form-control" name="fecha" id="fechaAvance" required></div>
+                        <div class="mb-3"><label class="form-label fw-semibold">Actividad realizada</label><input class="form-control" name="actividad" placeholder="Ej. Cambio de fuente, revisión de módem, soporte en edificio" required></div>
+                        <div class="mb-3"><label class="form-label fw-semibold">Personal que lo realizó</label><select class="form-select" name="personal" required><option value="" selected disabled>Seleccione personal</option>{% for p in personal %}<option value="{{ p.nombre }}">{{ p.nombre }}</option>{% endfor %}</select></div>
+                        <div class="mb-3"><label class="form-label fw-semibold">Solicitado por</label><select class="form-select" name="solicitado_por"><option value="">Seleccione</option>{% for p in personal %}<option value="{{ p.nombre }}">{{ p.nombre }}</option>{% endfor %}</select></div>
+                        <div class="mb-3"><label class="form-label fw-semibold">Edificio / lugar</label><select class="form-select" name="edificio"><option value="">Seleccione edificio</option>{% for e in edificios %}<option value="{{ e.nombre }}">{{ e.nombre }}</option>{% endfor %}</select></div>
+                        <div class="mb-3"><label class="form-label fw-semibold">Proyecto / referencia</label><input class="form-control" name="proyecto" placeholder="Ej. Portero Seguro, mantenimiento preventivo"></div>
+                        <div class="mb-3"><label class="form-label fw-semibold">Estado</label><select class="form-select" name="estado">{% for estado in estados %}<option value="{{ estado }}" {% if estado == 'EN_PROCESO' %}selected{% endif %}>{{ estado }}</option>{% endfor %}</select></div>
+                        <div class="mb-3"><label class="form-label fw-semibold">Detalles</label><textarea class="form-control" name="detalles" rows="4" placeholder="Describe qué se hizo, qué quedó pendiente, materiales usados o próximos pasos."></textarea></div>
+                        <div class="mb-3"><label class="form-label fw-semibold">Observaciones</label><textarea class="form-control" name="observaciones" rows="3"></textarea></div>
+                        <div class="d-grid"><button class="btn btn-primary">Guardar avance</button></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white fw-bold">Filtros</div>
+                <div class="card-body"><form method="GET" action="/avances" class="row g-2 align-items-end"><div class="col-md-3"><label class="form-label">Estado</label><select name="estado" class="form-select"><option value="">Todos</option>{% for estado in estados %}<option value="{{ estado }}" {% if f_estado == estado %}selected{% endif %}>{{ estado }}</option>{% endfor %}</select></div><div class="col-md-3"><label class="form-label">Personal</label><select name="personal" class="form-select"><option value="">Todos</option>{% for p in personal %}<option value="{{ p.nombre }}" {% if f_personal == p.nombre %}selected{% endif %}>{{ p.nombre }}</option>{% endfor %}</select></div><div class="col-md-2"><label class="form-label">Fecha</label><input type="date" name="fecha" value="{{ f_fecha }}" class="form-control"></div><div class="col-md-3"><label class="form-label">Buscar</label><input class="form-control" name="q" value="{{ q }}" placeholder="Actividad, edificio, proyecto"></div><div class="col-md-1 d-grid"><button class="btn btn-primary">Ir</button></div></form></div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center"><h5 class="fw-bold mb-0">Historial de avances</h5><span class="badge bg-primary">{{ registros|length }} registros</span></div>
+                <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th>Fecha</th><th>Actividad</th><th>Responsables</th><th>Estado</th><th width="240" class="text-end">Acciones</th></tr></thead><tbody>
+                    {% for r in registros %}
+                    <tr>
+                        <td><small class="text-muted">{{ r.fecha }}</small></td>
+                        <td><div class="fw-semibold">{{ r.actividad }}</div>{% if r.edificio %}<span class="badge bg-primary">{{ r.edificio }}</span>{% endif %}{% if r.proyecto %}<span class="badge bg-light text-dark border">{{ r.proyecto }}</span>{% endif %}{% if r.detalles %}<br><small>{{ r.detalles[:90] }}{% if r.detalles|length > 90 %}...{% endif %}</small>{% endif %}</td>
+                        <td><div>{{ r.personal }}</div>{% if r.solicitado_por %}<small>Solicitó: {{ r.solicitado_por }}</small>{% endif %}</td>
+                        <td>{% if r.estado == 'TERMINADO' %}<span class="badge bg-success">{{ r.estado }}</span>{% elif r.estado == 'EN_PROCESO' %}<span class="badge bg-warning text-dark">{{ r.estado }}</span>{% elif r.estado == 'OBSERVADO' %}<span class="badge bg-danger">{{ r.estado }}</span>{% else %}<span class="badge bg-secondary">{{ r.estado }}</span>{% endif %}</td>
+                        <td class="text-end"><button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#verAv{{ r.id }}">👁</button><button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalAv{{ r.id }}">Actualizar</button></td>
+                    </tr>
+
+                    <div class="modal fade" id="verAv{{ r.id }}" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Detalle avance #{{ r.id }}</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body"><p><strong>Fecha:</strong> {{ r.fecha }}</p><p><strong>Actividad:</strong> {{ r.actividad }}</p><p><strong>Realizado por:</strong> {{ r.personal }}</p><p><strong>Solicitado por:</strong> {{ r.solicitado_por or '-' }}</p><p><strong>Edificio:</strong> {{ r.edificio or '-' }}</p><p><strong>Proyecto:</strong> {{ r.proyecto or '-' }}</p><p><strong>Estado:</strong> {{ r.estado }}</p><hr><strong>Detalles:</strong><div class="border rounded bg-light p-3 mt-2" style="white-space:pre-wrap;">{{ r.detalles or 'Sin detalles.' }}</div><strong class="d-block mt-3">Observaciones:</strong><div class="border rounded bg-light p-3 mt-2" style="white-space:pre-wrap;">{{ r.observaciones or 'Sin observaciones.' }}</div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button></div></div></div></div>
+
+                    <div class="modal fade" id="modalAv{{ r.id }}" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form action="/avances/actualizar/{{ r.id }}" method="POST"><div class="modal-header"><h5 class="modal-title">Actualizar avance #{{ r.id }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><label class="form-label fw-semibold">Estado</label><select class="form-select mb-3" name="estado">{% for estado in estados %}<option value="{{ estado }}" {% if r.estado == estado %}selected{% endif %}>{{ estado }}</option>{% endfor %}</select><label class="form-label fw-semibold">Agregar observación</label><textarea class="form-control" name="observaciones" rows="4"></textarea><small class="text-muted">Observaciones anteriores:</small><div class="border rounded p-2 bg-light small mt-2" style="white-space:pre-wrap;">{{ r.observaciones or 'Sin observaciones' }}</div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary">Guardar</button></div></form></div></div></div>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center text-muted py-5">No hay avances registrados.</td></tr>
+                    {% endfor %}
+                </tbody></table></div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>const fecha=document.getElementById('fechaAvance'); if(fecha && !fecha.value){ fecha.value=new Date().toISOString().slice(0,10); }</script>
+{% endblock %}

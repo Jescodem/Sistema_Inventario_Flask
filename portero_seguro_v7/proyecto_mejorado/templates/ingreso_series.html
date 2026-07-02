@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Ingreso serializado | Inventario{% endblock %}
+{% block content %}
+<div class="py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">Ingreso masivo por series</h2>
+            <p class="text-muted mb-0">Registra varias unidades fisicas de un mismo modelo sin repetir categoria, marca y descripcion.</p>
+        </div>
+        <a href="/ingresos" class="btn btn-outline-secondary">Ingreso normal</a>
+    </div>
+
+    <div class="alert alert-info">
+        <strong>Uso recomendado:</strong> camaras, NVR, switches, AP, laptops, videoporteros y equipos que deban rastrearse por serial.
+        Para consumibles usa el ingreso normal por cantidad.
+    </div>
+
+    <form action="/ingreso_series" method="POST" onsubmit="return validarSeries()">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white fw-bold">Producto base</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Categoria</label>
+                        <select class="form-select" name="categoria" id="categoriaSelect" required></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Marca</label>
+                        <select class="form-select" name="marca" id="marcaSelect" required></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Modelo / descripcion</label>
+                        <select class="form-select" name="descripcion" id="modeloSelect" required></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Cantidad esperada</label>
+                        <input type="number" class="form-control" name="cantidad_esperada" id="cantidadEsperada" min="1" value="1" required>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold">Observaciones</label>
+                        <input type="text" class="form-control" name="observaciones" placeholder="Ej. Compra OC-001 / Guia proveedor 123">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white fw-bold">Series a ingresar</div>
+            <div class="card-body">
+                <label class="form-label fw-semibold">Una serie por linea. Opcional: SERIAL,MAC</label>
+                <textarea class="form-control font-monospace" name="series" id="seriesText" rows="12" placeholder="DS12345601&#10;DS12345602&#10;DS12345603,AA:BB:CC:DD:EE:03" required></textarea>
+                <div class="d-flex justify-content-between mt-2">
+                    <small class="text-muted" id="contadorSeries">0 series detectadas</small>
+                    <button class="btn btn-success px-4">Guardar ingreso serializado</button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+const catalogos = {{ catalogos | tojson }};
+const categoriaSelect = document.getElementById('categoriaSelect');
+const marcaSelect = document.getElementById('marcaSelect');
+const modeloSelect = document.getElementById('modeloSelect');
+const seriesText = document.getElementById('seriesText');
+const contadorSeries = document.getElementById('contadorSeries');
+
+function limpiar(select, texto){ select.innerHTML=''; select.add(new Option(texto, '')); }
+function marcasPorCategoria(cat){ return catalogos.marcas.filter(m => !cat || (m.categorias || []).includes(cat)); }
+function modelosPor(cat, marca){ return catalogos.modelos.filter(m => (!cat || m.categoria === cat) && (!marca || m.marca === marca)); }
+function cargarCategorias(){ limpiar(categoriaSelect, 'Seleccione categoria'); catalogos.categorias.forEach(c => categoriaSelect.add(new Option(c, c))); }
+function cargarMarcas(){ const cat=categoriaSelect.value; limpiar(marcaSelect, cat ? 'Seleccione marca' : 'Primero categoria'); marcasPorCategoria(cat).forEach(m => marcaSelect.add(new Option(m.nombre, m.nombre))); cargarModelos(); }
+function cargarModelos(){ const cat=categoriaSelect.value; const marca=marcaSelect.value; limpiar(modeloSelect, marca ? 'Seleccione modelo' : 'Primero marca'); modelosPor(cat, marca).forEach(m => modeloSelect.add(new Option(m.nombre, m.nombre))); }
+function contarSeries(){ const lineas=seriesText.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean); contadorSeries.textContent = `${lineas.length} serie(s) detectada(s)`; return lineas; }
+function validarSeries(){ const n=contarSeries().length; const esperado=parseInt(document.getElementById('cantidadEsperada').value || '0'); if(n !== esperado){ alert(`Cantidad esperada ${esperado}, pero detecte ${n} serie(s).`); return false; } return true; }
+categoriaSelect.addEventListener('change', cargarMarcas); marcaSelect.addEventListener('change', cargarModelos); seriesText.addEventListener('input', contarSeries);
+cargarCategorias(); cargarMarcas(); contarSeries();
+</script>
+{% endblock %}

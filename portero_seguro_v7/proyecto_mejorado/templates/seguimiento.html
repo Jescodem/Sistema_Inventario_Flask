@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block title %}Seguimiento | Portero Seguro{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">Seguimiento de herramientas</h2>
+        <p class="text-muted mb-0">Control de taladros, módems, UPS y equipos temporales fuera del inventario principal.</p>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-3"><div class="metric"><div class="metric-label">Total</div><div class="metric-value">{{ resumen.total }}</div></div></div>
+    <div class="col-sm-3"><div class="metric metric--warn"><div class="metric-label">En seguimiento</div><div class="metric-value">{{ resumen.activos }}</div></div></div>
+    <div class="col-sm-3"><div class="metric metric--muted"><div class="metric-label">Retirados</div><div class="metric-value">{{ resumen.retirados }}</div></div></div>
+    <div class="col-sm-3"><div class="metric metric--ok"><div class="metric-label">Devueltos</div><div class="metric-value">{{ resumen.devueltos }}</div></div></div>
+</div>
+
+<div class="row g-4">
+    <!-- Formulario -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0" style="font-family:var(--font-display)">Nuevo seguimiento</h6></div>
+            <div class="card-body">
+                <form method="POST" action="/seguimiento">
+                    <div class="mb-3">
+                        <label class="form-label">Herramienta / equipo</label>
+                        <input class="form-control" name="herramienta" required placeholder="Ej. Taladro Bosch, UPS temporal">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Personal responsable</label>
+                        <select class="form-select" name="personal" required>
+                            <option value="" selected disabled>Seleccione personal</option>
+                            {% for p in personal %}<option value="{{ p.nombre }}">{{ p.nombre }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fecha</label>
+                        <input type="date" class="form-control" name="fecha_dejado" id="fechaSeguimiento" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Edificio / lugar</label>
+                        <select class="form-select" name="edificio" required>
+                            <option value="" selected disabled>Seleccione edificio</option>
+                            {% for e in edificios %}<option value="{{ e.nombre }}">{{ e.nombre }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Entregado por</label>
+                        <select class="form-select" name="entregado_por">
+                            <option value="">— Seleccione —</option>
+                            {% for p in personal %}<option value="{{ p.nombre }}">{{ p.nombre }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Estado inicial</label>
+                        <select class="form-select" name="estado">
+                            {% for estado in estados %}<option value="{{ estado }}" {% if estado == 'EN_SEGUIMIENTO' %}selected{% endif %}>{{ estado }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Observaciones</label>
+                        <textarea class="form-control" name="observaciones" rows="3" placeholder="Condición, ubicación exacta, accesorios…"></textarea>
+                    </div>
+                    <div class="d-grid"><button class="btn btn-primary">Guardar seguimiento</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="col-lg-8">
+        <!-- Filtros -->
+        <div class="card mb-3">
+            <div class="card-body py-2">
+                <form method="GET" action="/seguimiento" class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label">Estado</label>
+                        <select name="estado" class="form-select form-select-sm">
+                            <option value="">Todos</option>
+                            {% for estado in estados %}<option value="{{ estado }}" {% if f_estado == estado %}selected{% endif %}>{{ estado }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Edificio</label>
+                        <select name="edificio" class="form-select form-select-sm">
+                            <option value="">Todos</option>
+                            {% for e in edificios %}<option value="{{ e.nombre }}" {% if f_edificio == e.nombre %}selected{% endif %}>{{ e.nombre }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Buscar</label>
+                        <input class="form-control form-control-sm" name="q" value="{{ q }}" placeholder="Herramienta, personal…">
+                    </div>
+                    <div class="col-md-2 d-grid">
+                        <button class="btn btn-primary btn-sm">Filtrar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0" style="font-family:var(--font-display)">Historial de seguimiento</h6>
+                <span class="badge badge-soft">{{ registros|length }} registros</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Herramienta</th>
+                            <th>Personal</th>
+                            <th>Edificio</th>
+                            <th>Estado</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for r in registros %}
+                        <tr>
+                            <td class="mono" style="font-size:.78rem;color:var(--mist)">{{ r.fecha_dejado }}</td>
+                            <td>
+                                <div class="fw-semibold" style="font-size:.88rem">{{ r.herramienta }}</div>
+                                {% if r.observaciones %}<small class="text-muted">{{ r.observaciones[:70] }}{% if r.observaciones|length > 70 %}…{% endif %}</small>{% endif %}
+                            </td>
+                            <td style="font-size:.85rem">
+                                {{ r.personal }}
+                                {% if r.entregado_por %}<br><small class="text-muted">Entregó: {{ r.entregado_por }}</small>{% endif %}
+                            </td>
+                            <td><span class="badge bg-primary">{{ r.edificio }}</span></td>
+                            <td>
+                                <span class="badge {% if r.estado == 'DEVUELTO' %}bg-success{% elif r.estado == 'EN_SEGUIMIENTO' %}bg-warning{% elif r.estado == 'PERDIDO' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                    {{ r.estado }}
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#verSeg{{ r.id }}">Ver</button>
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#updSeg{{ r.id }}">Actualizar</button>
+                                <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#delSeg{{ r.id }}">Eliminar</button>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="6" class="text-center text-muted py-5">No hay registros de seguimiento.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Los modales van FUERA de la tabla: colocarlos dentro de <tbody> es HTML
+   inválido y el navegador los expulsa, rompiendo la estructura de las filas. #}
+{% for r in registros %}
+    <!-- Modal: Ver detalle -->
+    <div class="modal fade" id="verSeg{{ r.id }}" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Seguimiento #{{ r.id }}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-sm mb-0">
+                        <tr><th style="width:40%">Herramienta</th><td>{{ r.herramienta }}</td></tr>
+                        <tr><th>Personal</th><td>{{ r.personal }}</td></tr>
+                        <tr><th>Fecha</th><td class="mono">{{ r.fecha_dejado }}</td></tr>
+                        <tr><th>Edificio</th><td>{{ r.edificio }}</td></tr>
+                        <tr><th>Entregado por</th><td>{{ r.entregado_por or '—' }}</td></tr>
+                        <tr><th>Estado</th><td>{{ r.estado }}</td></tr>
+                        {% if r.fecha_retorno %}<tr><th>Fecha retorno</th><td class="mono">{{ r.fecha_retorno }}</td></tr>{% endif %}
+                        {% if r.recibido_por %}<tr><th>Recibido por</th><td>{{ r.recibido_por }}</td></tr>{% endif %}
+                    </table>
+                    {% if r.observaciones and r.observaciones.strip() %}
+                    <div class="mt-3">
+                        <p class="form-label mb-1">Observaciones</p>
+                        <div class="nota-lista">
+                            {% for linea in r.observaciones.splitlines() %}{% if linea.strip() %}
+                            <div class="nota-item"><i class="bi bi-chevron-right"></i><span>{{ linea.strip() }}</span></div>
+                            {% endif %}{% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Actualizar -->
+    <div class="modal fade" id="updSeg{{ r.id }}" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form action="/seguimiento/actualizar/{{ r.id }}" method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Actualizar seguimiento #{{ r.id }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Estado</label>
+                            <select class="form-select" name="estado">
+                                {% for estado in estados %}<option value="{{ estado }}" {% if r.estado == estado %}selected{% endif %}>{{ estado }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Fecha retorno</label>
+                            <input type="date" class="form-control" name="fecha_retorno" value="{{ r.fecha_retorno or '' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Recibido por</label>
+                            <select class="form-select" name="recibido_por">
+                                <option value="">— Seleccione —</option>
+                                {% for p in personal %}<option value="{{ p.nombre }}" {% if r.recibido_por == p.nombre %}selected{% endif %}>{{ p.nombre }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Agregar observación</label>
+                            <textarea class="form-control" name="observaciones" rows="3"></textarea>
+                        </div>
+                        {% if r.observaciones %}
+                        <small class="text-muted">Anterior: {{ r.observaciones[:120] }}{% if r.observaciones|length > 120 %}…{% endif %}</small>
+                        {% endif %}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                        <button class="btn btn-primary btn-sm">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Eliminar -->
+    <div class="modal fade" id="delSeg{{ r.id }}" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Eliminar registro</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-1 fw-semibold">{{ r.herramienta }}</p>
+                    <p class="text-muted small mb-0">Esta acción es permanente y no se puede deshacer.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <form action="/seguimiento/eliminar/{{ r.id }}" method="POST" class="d-inline">
+                        <button class="btn btn-danger btn-sm">Eliminar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+
+<script>
+const f = document.getElementById('fechaSeguimiento');
+if (f && !f.value) f.value = new Date().toISOString().slice(0, 10);
+</script>
+{% endblock %}

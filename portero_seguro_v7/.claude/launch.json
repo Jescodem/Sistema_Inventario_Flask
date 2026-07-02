@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "real-app",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["C:/Users/DIANAG~1/AppData/Local/Temp/claude/C--Users-Diana-Gallardo-Desktop-JESUS-PROYECTOS-Sistema-Inventario-Flask-portero-seguro-v7/8d26725c-0a06-49f9-b874-baa3be2cc953/scratchpad/run_real.py"],
+      "port": 5099
+    }
+  ]
+}

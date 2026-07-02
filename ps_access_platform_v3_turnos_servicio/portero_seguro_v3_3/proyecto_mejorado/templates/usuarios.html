@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Usuarios - Portero Seguro{% endblock %}
+{% block content %}
+<h3 class="mb-1">Usuarios del sistema</h3>
+<p class="text-muted">Administra quién puede acceder y con qué nivel de permisos.</p>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card p-3">
+            <h5 class="mb-3">Usuarios registrados</h5>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Nombre completo</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th>Último acceso</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in usuarios %}
+                        <tr>
+                            <td><strong>{{ u.username }}</strong></td>
+                            <td>{{ u.nombre_completo }}</td>
+                            <td><span class="badge badge-soft text-uppercase">{{ u.rol }}</span></td>
+                            <td>
+                                {% if u.activo %}
+                                    <span class="badge bg-success">Activo</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactivo</span>
+                                {% endif %}
+                                {% if u.debe_cambiar_password %}
+                                    <span class="badge bg-warning text-dark">Pwd temporal</span>
+                                {% endif %}
+                            </td>
+                            <td class="small text-muted">{{ u.ultimo_acceso or '—' }}</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editar{{ u.id }}">Editar</button>
+                                <form action="{{ url_for('resetear_password_usuario', id=u.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('¿Restablecer la contraseña de {{ u.username }}? Se generará una temporal.')">
+                                    <button type="submit" class="btn btn-sm btn-outline-warning">Reset pwd</button>
+                                </form>
+                            </td>
+                        </tr>
+
+                        <div class="modal fade" id="editar{{ u.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form action="{{ url_for('editar_usuario', id=u.id) }}" method="POST">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Editar {{ u.username }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">Nombre completo</label>
+                                                <input type="text" name="nombre_completo" class="form-control" value="{{ u.nombre_completo }}" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Rol</label>
+                                                <select name="rol" class="form-select">
+                                                    {% for r in roles %}
+                                                        <option value="{{ r }}" {% if r == u.rol %}selected{% endif %}>{{ r|upper }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input" name="activo" id="activo{{ u.id }}" {% if u.activo %}checked{% endif %}>
+                                                <label class="form-check-label" for="activo{{ u.id }}">Usuario activo</label>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <button type="submit" class="btn btn-primary">Guardar</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card p-3 mb-4">
+            <h5 class="mb-3">Crear nuevo usuario</h5>
+            <form action="{{ url_for('crear_usuario') }}" method="POST">
+                <div class="mb-3">
+                    <label class="form-label">Usuario (para iniciar sesión)</label>
+                    <input type="text" name="username" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Nombre completo</label>
+                    <input type="text" name="nombre_completo" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Rol</label>
+                    <select name="rol" class="form-select" required>
+                        <option value="lectura">LECTURA — solo puede ver</option>
+                        <option value="operador">OPERADOR — trabajo diario de almacén</option>
+                        <option value="admin">ADMIN — control total</option>
+                    </select>
+                </div>
+                <p class="small text-muted">Se generará una contraseña temporal que deberás compartir con la persona; se le pedirá cambiarla al ingresar.</p>
+                <button type="submit" class="btn btn-primary w-100">Crear usuario</button>
+            </form>
+        </div>
+
+        <div class="card p-3">
+            <h5 class="mb-3">Cambiar mi contraseña</h5>
+            <form action="{{ url_for('usuarios') }}" method="POST">
+                <input type="hidden" name="accion" value="cambiar_mi_password">
+                <div class="mb-3">
+                    <label class="form-label">Contraseña actual</label>
+                    <input type="password" name="password_actual" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Nueva contraseña</label>
+                    <input type="password" name="password_nueva" class="form-control" minlength="8" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Confirmar nueva contraseña</label>
+                    <input type="password" name="password_confirmacion" class="form-control" minlength="8" required>
+                </div>
+                <button type="submit" class="btn btn-outline-primary w-100">Actualizar contraseña</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

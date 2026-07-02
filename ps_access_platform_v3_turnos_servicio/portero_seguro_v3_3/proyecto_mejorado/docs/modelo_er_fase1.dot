@@ -1,0 +1,29 @@
+digraph ER {
+  graph [rankdir=LR, bgcolor="white", nodesep=0.6, ranksep=0.8];
+  node [shape=record, style="rounded,filled", fillcolor="#F8FAFC", color="#334155", fontname="Arial", fontsize=10];
+  edge [color="#475569", fontname="Arial", fontsize=9];
+
+  equipos [label="{EQUIPOS|PK id\lcategoria\lmarca\ldescripcion\lsku\lmac\lestado\lcantidad\lstock_minimo\l}"];
+  categorias [label="{CATEGORIAS|PK id\lnombre UK\l}"];
+  marcas [label="{MARCAS|PK id\lnombre UK\l}"];
+  modelos [label="{MODELOS|PK id\lnombre UK\l}"];
+  cargos [label="{CARGOS|PK id\lnombre UK\l}"];
+  personal [label="{PERSONAL|PK id\lnombre UK\lcargo\l}"];
+  edificios [label="{EDIFICIOS|PK id\lnombre UK\l}"];
+  guias [label="{GUIAS_SALIDA|PK id\lpersonal\lcargo\ldestino\lproyecto\lresponsables\lfecha\lestado\l}"];
+  detalle [label="{GUIA_DETALLE|PK id\lFK guia_id\lFK equipo_id\lcantidad\l}"];
+  salidas [label="{SALIDAS|PK id\lFK equipo_id\lpersonal\ldestino\lcantidad\lfecha\l}"];
+  movimientos [label="{MOVIMIENTOS|PK id\lFK equipo_id\lFK guia_id\ltipo\lcantidad\lstock_anterior\lstock_nuevo\lreferencia\lfecha\l}"];
+
+  categorias -> equipos [label="1 a N"];
+  marcas -> equipos [label="1 a N"];
+  modelos -> equipos [label="1 a N"];
+  cargos -> personal [label="1 a N"];
+  personal -> guias [label="1 a N"];
+  edificios -> guias [label="1 a N"];
+  guias -> detalle [label="1 a N"];
+  equipos -> detalle [label="1 a N"];
+  equipos -> salidas [label="1 a N"];
+  equipos -> movimientos [label="1 a N"];
+  guias -> movimientos [label="0 a N"];
+}

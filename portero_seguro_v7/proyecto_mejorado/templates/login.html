@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>Ingresar — Portero Seguro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+    *{box-sizing:border-box;}
+    :root{--p:#E33F10;--ph:#C2330D;--pt:rgba(227,63,16,.12);}
+    body{margin:0;min-height:100vh;display:flex;background:#0B0F1A;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+
+    /* Grid split */
+    .login-side{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 24px;}
+    .login-art{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px;position:relative;overflow:hidden;}
+    @media(max-width:768px){.login-art{display:none;}.login-side{flex:none;width:100%;}}
+
+    /* Art side decoration */
+    .art-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 30% 40%,rgba(234,88,12,.22) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(251,146,60,.1) 0%,transparent 50%);}
+    .art-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:40px 40px;}
+    .art-content{position:relative;z-index:1;text-align:center;}
+    .art-logo{width:56px;height:56px;background:#EA580C;border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:1rem;color:#fff;margin:0 auto 20px;}
+    .art-title{font-size:1.6rem;font-weight:700;color:#fff;letter-spacing:-.02em;margin-bottom:8px;}
+    .art-desc{font-size:.875rem;color:rgba(255,255,255,.45);max-width:320px;line-height:1.6;}
+    .art-stats{display:flex;gap:32px;margin-top:40px;}
+    .art-stat{text-align:center;}
+    .art-stat-n{font-size:1.6rem;font-weight:700;color:#fff;line-height:1;}
+    .art-stat-l{font-size:.7rem;color:rgba(255,255,255,.4);margin-top:4px;text-transform:uppercase;letter-spacing:.06em;}
+
+    /* Card */
+    .login-card{width:100%;max-width:380px;}
+    .lcard-header{margin-bottom:32px;}
+    .lcard-logo{width:40px;height:40px;background:var(--p);border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.8rem;color:#fff;margin-bottom:20px;}
+    .lcard-title{font-size:1.4rem;font-weight:700;color:#fff;letter-spacing:-.02em;margin:0 0 4px;}
+    .lcard-sub{font-size:.83rem;color:rgba(255,255,255,.4);}
+
+    .form-label{font-size:.78rem;font-weight:500;color:rgba(255,255,255,.6);margin-bottom:.35rem;display:block;}
+    .form-control{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:.875rem;padding:.55rem .85rem;font-family:'Inter',sans-serif;transition:border-color .15s,box-shadow .15s;}
+    .form-control:focus{outline:none;border-color:var(--p);box-shadow:0 0 0 3px var(--pt);background:rgba(255,255,255,.08);}
+    .form-control::placeholder{color:rgba(255,255,255,.25);}
+
+    .alert{border-radius:8px;font-size:.8rem;border:none;padding:.6rem .9rem;margin-bottom:16px;}
+    .alert-danger{background:rgba(220,38,38,.15);color:#FCA5A5;border-left:3px solid #DC2626;}
+    .alert-warning{background:rgba(217,119,6,.15);color:#FCD34D;border-left:3px solid #D97706;}
+    .alert-success{background:rgba(5,150,105,.15);color:#6EE7B7;border-left:3px solid #059669;}
+
+    .btn-login{width:100%;background:var(--p);border:none;border-radius:8px;color:#fff;font-size:.875rem;font-weight:600;padding:.65rem;cursor:pointer;transition:background .15s;font-family:'Inter',sans-serif;margin-top:20px;}
+    .btn-login:hover{background:var(--ph);}
+
+    .login-foot{margin-top:24px;font-size:.72rem;color:rgba(255,255,255,.25);text-align:center;font-family:'JetBrains Mono',monospace;}
+    </style>
+</head>
+<body>
+    <!-- Lado form -->
+    <div class="login-side">
+        <div class="login-card">
+            <div class="lcard-header">
+                <img src="/static/img/logo.png" alt="Portero Seguro"
+                     style="height:52px;width:auto;margin-bottom:20px;filter:brightness(0) invert(1);opacity:.9;">
+                <h1 class="lcard-title">Bienvenido</h1>
+                <p class="lcard-sub">Ingresa tus credenciales para continuar</p>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('login') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="mb-3">
+                    <label class="form-label">Usuario</label>
+                    <input type="text" name="username" class="form-control" autocomplete="username" required autofocus placeholder="Nombre de usuario">
+                </div>
+                <div class="mb-1">
+                    <label class="form-label">Contraseña</label>
+                    <input type="password" name="password" class="form-control" autocomplete="current-password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn-login">Iniciar sesión</button>
+            </form>
+            <div class="login-foot">PORTERO SEGURO · CONTROL DE ACTIVOS</div>
+        </div>
+    </div>
+
+    <!-- Lado decorativo -->
+    <div class="login-art">
+        <div class="art-bg"></div>
+        <div class="art-grid"></div>
+        <div class="art-content">
+            <img src="/static/img/logo.png" alt="Portero Seguro"
+                 style="height:72px;width:auto;margin-bottom:20px;">
+            <h2 class="art-title">Portero Seguro</h2>
+            <p class="art-desc">Sistema de inventario, trazabilidad de activos y control de equipos de seguridad electrónica.</p>
+            <div class="art-stats">
+                <div class="art-stat">
+                    <div class="art-stat-n">200+</div>
+                    <div class="art-stat-l">Edificios</div>
+                </div>
+                <div class="art-stat">
+                    <div class="art-stat-n">CCTV</div>
+                    <div class="art-stat-l">IP & Analógico</div>
+                </div>
+                <div class="art-stat">
+                    <div class="art-stat-n">100%</div>
+                    <div class="art-stat-l">Trazabilidad</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

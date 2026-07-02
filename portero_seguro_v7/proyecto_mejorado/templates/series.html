@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Series · Portero Seguro{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="page-title">Series Individuales</h1>
+        <p class="page-subtitle">Trazabilidad unidad por unidad — estado y ubicación de cada activo serializado</p>
+    </div>
+    <a href="/ingreso_series" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Ingresar series</a>
+</div>
+
+<div class="alert alert-info mb-3" style="font-size:.8rem;">
+    <i class="bi bi-shield-check"></i>
+    <strong>Protección:</strong> solo se puede eliminar una serie si está <code>EN_STOCK</code>. Si está entregada en una guía, primero quítala desde la guía.
+</div>
+
+<!-- Filtros -->
+<div class="card mb-3" style="padding:14px 18px;">
+    <form method="GET" action="/series">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label">Buscar</label>
+                <input class="form-control form-control-sm" name="q" value="{{ q }}" placeholder="Serial, MAC, marca, descripción o categoría">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Estado</label>
+                <select name="estado" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    {% for e in ['EN_STOCK','ENTREGADO','BAJA'] %}<option value="{{ e }}" {% if f_estado==e %}selected{% endif %}>{{ e }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2"><button class="btn btn-primary btn-sm w-100"><i class="bi bi-funnel"></i> Filtrar</button></div>
+            <div class="col-md-2"><a href="/series" class="btn btn-outline-secondary btn-sm w-100">Limpiar</a></div>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span style="font-size:.84rem;font-weight:600;">Seriales registrados</span>
+        <span class="badge badge-soft"><i class="bi bi-database"></i> {{ series|length }} resultado(s)</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Serial</th>
+                    <th>MAC</th>
+                    <th>Estado</th>
+                    <th>Ubicación actual</th>
+                    <th>Guía actual</th>
+                    <th>Actualizado</th>
+                    <th class="text-end">Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for s in series %}
+            <tr>
+                <td>
+                    <div style="font-weight:600;font-size:.84rem;">{{ s.marca }} — {{ s.descripcion }}</div>
+                    <div style="font-size:.73rem;color:var(--c-muted);">{{ s.categoria }}</div>
+                </td>
+                <td><span class="badge bg-secondary" style="font-family:var(--mono);font-size:.72rem;letter-spacing:.02em;">{{ s.serial }}</span></td>
+                <td style="font-family:var(--mono);font-size:.75rem;color:var(--c-muted);">{{ s.mac or '—' }}</td>
+                <td>
+                    {% if s.estado == 'EN_STOCK' %}<span class="badge bg-success">En Stock</span>
+                    {% elif s.estado == 'ENTREGADO' %}<span class="badge bg-warning">Entregado</span>
+                    {% else %}<span class="badge bg-secondary">{{ s.estado }}</span>{% endif %}
+                </td>
+                <td>
+                    {% set ub = s.ubicacion_actual or 'Almacén' %}
+                    {% if ub == 'Almacén' %}<span class="badge bg-success"><i class="bi bi-house" style="font-size:.65rem;"></i> Almacén</span>
+                    {% elif ub == 'Dado de baja' %}<span class="badge bg-secondary">Dado de baja</span>
+                    {% else %}<span class="badge bg-primary"><i class="bi bi-geo-alt" style="font-size:.65rem;"></i> {{ ub }}</span>{% endif %}
+                </td>
+                <td>
+                    {% if s.guia_id %}
+                    <a href="/guia/{{ s.guia_id }}" class="btn btn-sm btn-outline-primary" style="font-size:.72rem;padding:.15rem .5rem;">
+                        {{ guia_codigo(s.guia_id) }}
+                    </a>
+                    {% else %}<span style="color:var(--c-ghost);font-size:.8rem;">—</span>{% endif %}
+                </td>
+                <td style="font-size:.75rem;color:var(--c-muted);font-family:var(--mono);">{{ s.fecha_actualizacion[:16] if s.fecha_actualizacion else '—' }}</td>
+                <td class="text-end">
+                    {% if s.estado == 'EN_STOCK' %}
+                    <form action="/series/{{ s.id }}/eliminar" method="POST" class="d-inline"
+                          onsubmit="return confirm('¿Eliminar el serial {{ s.serial }}? Esta acción no se puede deshacer.')">
+                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                    </form>
+                    {% else %}
+                    <span style="color:var(--c-ghost);font-size:.75rem;">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-center text-muted py-5">
+                <i class="bi bi-inbox" style="font-size:1.8rem;display:block;margin-bottom:8px;opacity:.4;"></i>
+                No hay series que coincidan con los filtros.
+            </td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

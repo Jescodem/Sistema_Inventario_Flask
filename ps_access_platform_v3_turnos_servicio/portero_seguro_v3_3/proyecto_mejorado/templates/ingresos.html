@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo Ingreso | Inventario CCTV{% endblock %}
+
+{% block content %}
+<div class="py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">Nuevo Ingreso</h2>
+            <p class="text-muted mb-0">Registro de equipos, materiales y activos con catalogos dependientes.</p>
+        </div>
+        <a href="/" class="btn btn-outline-secondary">Volver al Dashboard</a>
+    </div>
+
+    <div class="alert alert-info border-0 shadow-sm">
+        <strong>Flujo recomendado:</strong> selecciona categoria, luego marca y finalmente modelo. Si buscas un modelo, el sistema puede completar automaticamente su categoria y marca.
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-success text-white py-3">
+            <h5 class="fw-semibold mb-0">Registro de Equipo</h5>
+        </div>
+        <div class="card-body p-4">
+            <form action="/ingresos" method="POST">
+                <div class="row g-4">
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Buscar modelo rapidamente</label>
+                        <input type="text" class="form-control" id="modeloBuscar" list="modelosDatalist" placeholder="Ej. Camara Domo IP 4MP, Intercomunicador R29C, Switch PoE...">
+                        <datalist id="modelosDatalist">
+                            {% for modelo in catalogos.modelos %}
+                            <option value="{{ modelo.nombre }}">{{ modelo.categoria }} / {{ modelo.marca }}</option>
+                            {% endfor %}
+                        </datalist>
+                        <small class="text-muted">Al elegir un modelo existente se completan categoria, marca y modelo.</small>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Categoria</label>
+                        <div class="input-group">
+                            <select class="form-select" name="categoria" id="categoriaSelect" required>
+                                <option selected disabled value="">Seleccione una categoria</option>
+                            </select>
+                            <button class="btn btn-outline-success" type="button" data-bs-toggle="modal" data-bs-target="#modalNuevaCategoria">+</button>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Marca</label>
+                        <div class="input-group">
+                            <select class="form-select" name="marca" id="marcaSelect" required disabled>
+                                <option selected disabled value="">Seleccione una marca</option>
+                            </select>
+                            <button class="btn btn-outline-success" type="button" data-bs-toggle="modal" data-bs-target="#modalNuevaMarca">+</button>
+                        </div>
+                        <small class="text-muted">Solo se muestran marcas asociadas a la categoria seleccionada.</small>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Modelo / Descripcion</label>
+                        <div class="input-group">
+                            <select class="form-select" name="descripcion" id="modeloSelect" required disabled>
+                                <option selected disabled value="">Seleccione un modelo</option>
+                            </select>
+                            <button class="btn btn-outline-success" type="button" data-bs-toggle="modal" data-bs-target="#modalNuevoModelo">+</button>
+                        </div>
+                        <small class="text-muted">Los modelos quedan relacionados con categoria y marca.</small>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">SKU / Numero de Serie</label>
+                        <input type="text" class="form-control" name="sku" placeholder="Ej. SN-987654321">
+                        <small class="text-muted">Campo opcional para consumibles.</small>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Direccion MAC</label>
+                        <input type="text" class="form-control" name="mac" placeholder="00:11:22:33:44:55">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Cantidad</label>
+                        <input type="number" class="form-control" name="cantidad" value="1" min="1" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Stock minimo</label>
+                        <input type="number" class="form-control" name="stock_minimo" value="0" min="0" required>
+                        <small class="text-muted">Se usa para alertas de stock bajo.</small>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Estado inicial</label>
+                        <select class="form-select" name="estado" required>
+                            {% for estado in estados %}
+                            <option value="{{ estado }}" {% if estado == 'En Stock' %}selected{% endif %}>{{ estado }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Observaciones</label>
+                        <textarea class="form-control" name="observaciones" rows="4" placeholder="Proveedor, guia de remision, observaciones tecnicas u otra informacion relevante"></textarea>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+                <div class="d-flex justify-content-end gap-2">
+                    <button type="reset" class="btn btn-outline-secondary" onclick="setTimeout(inicializarFormulario, 0)">Limpiar</button>
+                    <button type="submit" class="btn btn-success px-4">Guardar Ingreso</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalNuevaCategoria" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form action="/agregar_categoria" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Nueva Categoria</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label fw-semibold">Nombre de la categoria</label>
+                    <input type="text" class="form-control" name="nombre" placeholder="Ej. CCTV" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalNuevaMarca" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form action="/agregar_marca" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Nueva Marca</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Categoria asociada</label>
+                        <select class="form-select modalCategoria" name="categoria" id="modalMarcaCategoria" required></select>
+                    </div>
+                    <label class="form-label fw-semibold">Nombre de la marca</label>
+                    <input type="text" class="form-control" name="nombre" placeholder="Ej. Hikvision" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalNuevoModelo" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form action="/agregar_modelo" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Nuevo Modelo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Categoria</label>
+                        <select class="form-select modalCategoria" name="categoria" id="modalModeloCategoria" required></select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Marca</label>
+                        <select class="form-select" name="marca" id="modalModeloMarca" required></select>
+                    </div>
+                    <label class="form-label fw-semibold">Nombre del modelo</label>
+                    <input type="text" class="form-control" name="nombre" placeholder="Ej. DS-2CD2143G2-I" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const catalogos = {{ catalogos | tojson }};
+const categoriaSelect = document.getElementById('categoriaSelect');
+const marcaSelect = document.getElementById('marcaSelect');
+const modeloSelect = document.getElementById('modeloSelect');
+const modeloBuscar = document.getElementById('modeloBuscar');
+
+function marcasPorCategoria(categoria){
+    return catalogos.marcas.filter(m => (m.categorias || []).includes(categoria));
+}
+function modelosPor(categoria, marca){
+    return catalogos.modelos.filter(m => (!categoria || m.categoria === categoria) && (!marca || m.marca === marca));
+}
+function cargarCategorias(select, selected=''){
+    select.innerHTML = '<option value="" disabled selected>Seleccione una categoria</option>';
+    catalogos.categorias.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat; opt.textContent = cat;
+        if(cat === selected){ opt.selected = true; }
+        select.appendChild(opt);
+    });
+}
+function cargarMarcas(selected=''){
+    const categoria = categoriaSelect.value;
+    marcaSelect.innerHTML = '<option value="" disabled selected>Seleccione una marca</option>';
+    marcaSelect.disabled = !categoria;
+    marcasPorCategoria(categoria).forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.nombre; opt.textContent = m.nombre;
+        if(m.nombre === selected){ opt.selected = true; }
+        marcaSelect.appendChild(opt);
+    });
+    cargarModelos();
+}
+function cargarModelos(selected=''){
+    const categoria = categoriaSelect.value;
+    const marca = marcaSelect.value;
+    modeloSelect.innerHTML = '<option value="" disabled selected>Seleccione un modelo</option>';
+    modeloSelect.disabled = !(categoria && marca);
+    modelosPor(categoria, marca).forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.nombre;
+        opt.textContent = m.nombre;
+        opt.dataset.categoria = m.categoria;
+        opt.dataset.marca = m.marca;
+        if(m.nombre === selected){ opt.selected = true; }
+        modeloSelect.appendChild(opt);
+    });
+}
+function seleccionarModeloPorNombre(nombre){
+    const modelo = catalogos.modelos.find(m => m.nombre.toLowerCase() === (nombre || '').toLowerCase());
+    if(!modelo){ return; }
+    categoriaSelect.value = modelo.categoria;
+    cargarMarcas(modelo.marca);
+    cargarModelos(modelo.nombre);
+}
+function prepararModales(){
+    document.querySelectorAll('.modalCategoria').forEach(sel => cargarCategorias(sel, categoriaSelect.value));
+    const modalModeloCategoria = document.getElementById('modalModeloCategoria');
+    const modalModeloMarca = document.getElementById('modalModeloMarca');
+    function cargarModalMarcas(){
+        const categoria = modalModeloCategoria.value;
+        modalModeloMarca.innerHTML = '<option value="" disabled selected>Seleccione marca</option>';
+        marcasPorCategoria(categoria).forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.nombre; opt.textContent = m.nombre;
+            if(m.nombre === marcaSelect.value){ opt.selected = true; }
+            modalModeloMarca.appendChild(opt);
+        });
+    }
+    cargarModalMarcas();
+    modalModeloCategoria.onchange = cargarModalMarcas;
+}
+function inicializarFormulario(){
+    cargarCategorias(categoriaSelect);
+    marcaSelect.innerHTML = '<option value="" disabled selected>Seleccione una marca</option>';
+    marcaSelect.disabled = true;
+    modeloSelect.innerHTML = '<option value="" disabled selected>Seleccione un modelo</option>';
+    modeloSelect.disabled = true;
+}
+
+categoriaSelect.addEventListener('change', () => cargarMarcas());
+marcaSelect.addEventListener('change', () => cargarModelos());
+modeloBuscar.addEventListener('change', () => seleccionarModeloPorNombre(modeloBuscar.value));
+document.getElementById('modalNuevaMarca').addEventListener('show.bs.modal', prepararModales);
+document.getElementById('modalNuevoModelo').addEventListener('show.bs.modal', prepararModales);
+inicializarFormulario();
+</script>
+{% endblock %}

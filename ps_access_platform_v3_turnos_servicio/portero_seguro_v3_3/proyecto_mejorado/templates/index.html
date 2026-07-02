@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Inventario Portero Seguro<script>
+(function(){
+    const input = document.getElementById('busquedaRapidaInventario');
+    const rows = Array.from(document.querySelectorAll('#tablaInventario tbody tr[data-search]'));
+    const contador = document.getElementById('contadorInventario');
+    if(!input){ return; }
+    input.addEventListener('input', function(){
+        const q = this.value.toLowerCase().trim();
+        let visibles = 0;
+        rows.forEach(row => {
+            const texto = (row.dataset.search || '').toLowerCase();
+            const ok = !q || texto.includes(q);
+            row.style.display = ok ? '' : 'none';
+            if(ok){ visibles += 1; }
+        });
+        if(contador){ contador.textContent = visibles; }
+    });
+})();
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">Dashboard de Inventario</h2>
+            <p class="text-muted mb-0">Control de equipos, materiales y activos tecnológicos</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/ingreso_series" class="btn btn-outline-primary">Ingreso por Series</a>
+            <a href="/ingresos" class="btn btn-primary">Nuevo Ingreso</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-4">
+            <div class="metric">
+                <div class="metric-label">Total en stock</div>
+                <div class="metric-value">{{ total_stock }}</div>
+                <div class="metric-hint">unidades registradas</div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="metric metric--warn">
+                <div class="metric-label">En revisión técnica</div>
+                <div class="metric-value">{{ en_revision }}</div>
+                <div class="metric-hint">pendientes de diagnóstico</div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="metric metric--danger">
+                <div class="metric-label">Stock crítico</div>
+                <div class="metric-value">{{ critico }}</div>
+                <div class="metric-hint">productos bajo el mínimo</div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .metric { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; border-bottom:3px solid var(--line); height:100%; }
+        .metric-label { font-family:var(--font-mono); font-size:.66rem; text-transform:uppercase; letter-spacing:.07em; color:var(--mist); margin-bottom:10px; }
+        .metric-value { font-family:var(--font-display); font-size:2.1rem; font-weight:700; color:var(--ink); line-height:1; }
+        .metric-hint { font-family:var(--font-mono); font-size:.68rem; color:var(--mist); margin-top:6px; }
+        .metric--warn { border-bottom-color:var(--warn); }
+        .metric--warn .metric-value { color:var(--warn); }
+        .metric--danger { border-bottom-color:var(--danger); }
+        .metric--danger .metric-value { color:var(--danger); }
+    </style>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom">
+            <h6 class="fw-semibold mb-0">Filtros de búsqueda</h6>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 mb-3">
+                <div class="col-lg-12">
+                    <label class="form-label fw-semibold">Búsqueda rápida en pantalla</label>
+                    <input type="text" class="form-control" id="busquedaRapidaInventario" placeholder="Escribe marca, modelo, serie, MAC, categoría o estado y la tabla se filtra al instante...">
+                    <small class="text-muted">Este filtro no recarga la página; filtra según los caracteres ingresados.</small>
+                </div>
+            </div>
+            <form method="GET" action="/" class="row g-3">
+                <div class="col-lg-4">
+                    <input type="text" class="form-control" name="q" value="{{ search_query }}" placeholder="Buscar por SKU, serie, MAC o descripción">
+                </div>
+                <div class="col-lg-3">
+                    <select class="form-select" name="categoria">
+                        <option value="">Todas las categorías</option>
+                        {% for cat in categorias_db %}
+                        <option value="{{ cat.nombre }}" {% if categoria_filter == cat.nombre %}selected{% endif %}>{{ cat.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-3">
+                    <select class="form-select" name="estado">
+                        <option value="">Todos los estados</option>
+                        {% for estado in estados %}
+                        <option value="{{ estado }}" {% if estado_filter == estado %}selected{% endif %}>{{ estado }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-2 d-grid">
+                    <button class="btn btn-primary">Buscar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="fw-semibold mb-0">Inventario Actual</h5>
+            <span class="badge badge-soft"><span id="contadorInventario">{{ equipos|length }}</span> registros</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="tablaInventario">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>SKU / Serie</th>
+                            <th>Equipo</th>
+                            <th>Categoría</th>
+                            <th>Cantidad</th>
+                            <th>Stock Min.</th>
+                            <th>Control</th>
+                            <th>Estado</th>
+                            <th>Ubicación actual</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for equipo in equipos %}
+                        <tr class="{% if equipo.estado == 'Baja' %}table-light text-muted{% elif equipo.estado == 'Sin Stock' %}table-warning{% endif %}"
+                            data-search="{{ (equipo.id|string) ~ ' ' ~ (equipo.categoria or '') ~ ' ' ~ (equipo.marca or '') ~ ' ' ~ (equipo.descripcion or '') ~ ' ' ~ (equipo.sku or '') ~ ' ' ~ (equipo.mac or '') ~ ' ' ~ (equipo.estado or '') ~ ' ' ~ (equipo.ubicacion_display or '') ~ ' ' ~ (equipo.seriales_registradas or '') ~ ' ' ~ (equipo.macs_registradas or '') }}">
+                            <td class="fw-semibold text-secondary mono">#{{ equipo.id }}</td>
+                            <td class="mono">
+                                {{ equipo.sku if equipo.sku else '-' }}
+                                {% if equipo.total_series and equipo.total_series > 0 %}
+                                <br><button class="btn btn-sm btn-outline-primary mt-1" data-bs-toggle="modal" data-bs-target="#seriesEquipo{{ equipo.id }}">Ver series ({{ equipo.total_series }})</button>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="fw-semibold">{{ equipo.marca }}</div>
+                                <small class="text-muted">{{ equipo.descripcion }}</small>
+                                {% if equipo.mac %}<br><small class="text-secondary">MAC ref.: {{ equipo.mac }}</small>{% endif %}
+                                {% if equipo.macs_registradas %}<br><small class="text-secondary">MACs registradas: {{ equipo.macs_registradas[:90] }}{% if equipo.macs_registradas|length > 90 %}...{% endif %}</small>{% endif %}
+                            </td>
+                            <td><span class="badge bg-light text-dark border">{{ equipo.categoria }}</span></td>
+                            <td class="fw-bold mono">{{ equipo.cantidad }}</td>
+                            <td class="mono">{{ equipo.stock_minimo if equipo.stock_minimo is not none else 0 }}</td>
+                            <td>
+                                {% if equipo.control_stock == 'SERIAL' %}
+                                <span class="badge bg-info text-dark">SERIAL</span>
+                                {% else %}
+                                <span class="badge bg-light text-dark border">CANTIDAD</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if equipo.estado == 'En Stock' %}
+                                <span class="badge bg-success">En Stock</span>
+                                {% elif equipo.estado == 'Sin Stock' %}
+                                <span class="badge bg-warning text-dark">Sin Stock</span>
+                                {% elif equipo.estado == 'En Revision' %}
+                                <span class="badge bg-warning text-dark">En Revisión</span>
+                                {% elif equipo.estado == 'Baja' %}
+                                <span class="badge bg-danger">Baja</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ equipo.estado }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if equipo.control_stock == 'SERIAL' %}
+                                    {% for parte in (equipo.ubicacion_display or '').split(' · ') %}
+                                    <span class="badge bg-light text-dark border mb-1 d-inline-block">📍 {{ parte }}</span>
+                                    {% endfor %}
+                                {% elif equipo.ubicacion_display == 'Baja' %}
+                                    <span class="badge bg-danger">📍 Baja</span>
+                                {% elif equipo.ubicacion_display == 'Sin stock' %}
+                                    <span class="badge bg-warning text-dark">📍 Sin stock</span>
+                                {% else %}
+                                    <span class="badge bg-primary">📍 {{ equipo.ubicacion_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if equipo.estado != 'Baja' %}
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editEquipo{{ equipo.id }}">Editar</button>
+                                <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#bajaEquipo{{ equipo.id }}">Dar baja</button>
+                                {% else %}
+                                <span class="text-muted small">Sin acciones</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+
+                        <div class="modal fade" id="seriesEquipo{{ equipo.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-lg modal-dialog-centered">
+                                <div class="modal-content border-0 shadow">
+                                    <div class="modal-header bg-primary text-white">
+                                        <h5 class="modal-title">Series registradas - {{ equipo.marca }} {{ equipo.descripcion }}</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        {% if equipo.seriales_registradas %}
+                                        <p class="text-muted small mb-2">Estas series/MAC provienen de Ingreso Series o de la migración de registros antiguos con SKU/MAC.</p>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-semibold">Series</label>
+                                                <div class="border rounded p-3 bg-light" style="white-space:pre-wrap;max-height:240px;overflow:auto;">{{ equipo.seriales_registradas.replace(', ', '
+') }}</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-semibold">MACs</label>
+                                                <div class="border rounded p-3 bg-light" style="white-space:pre-wrap;max-height:240px;overflow:auto;">{{ (equipo.macs_registradas or 'Sin MACs registradas').replace(', ', '
+') }}</div>
+                                            </div>
+                                        </div>
+                                        {% else %}
+                                        <div class="alert alert-warning mb-0">Este producto no tiene series individuales registradas.</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal fade" id="editEquipo{{ equipo.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-lg modal-dialog-centered">
+                                <div class="modal-content border-0 shadow">
+                                    <form action="/editar_equipo/{{ equipo.id }}" method="POST">
+                                        <div class="modal-header bg-primary text-white">
+                                            <h5 class="modal-title">Editar producto #{{ equipo.id }}</h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="row g-3">
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold">Categoría</label>
+                                                    <select class="form-select" name="categoria" required>
+                                                        {% for cat in categorias_db %}<option value="{{ cat.nombre }}" {% if equipo.categoria == cat.nombre %}selected{% endif %}>{{ cat.nombre }}</option>{% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold">Marca</label>
+                                                    <input class="form-control" name="marca" value="{{ equipo.marca }}" required>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold">Modelo / descripción</label>
+                                                    <input class="form-control" name="descripcion" value="{{ equipo.descripcion }}" required>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold">SKU / Serie referencia</label>
+                                                    <input class="form-control" name="sku" value="{{ equipo.sku or '' }}">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold">MAC referencia</label>
+                                                    <input class="form-control" name="mac" value="{{ equipo.mac or '' }}">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label fw-semibold">Stock mínimo</label>
+                                                    <input type="number" class="form-control" name="stock_minimo" min="0" value="{{ equipo.stock_minimo or 0 }}">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label fw-semibold">Estado</label>
+                                                    <select class="form-select" name="estado">
+                                                        {% for estado in estados %}<option value="{{ estado }}" {% if equipo.estado == estado %}selected{% endif %}>{{ estado }}</option>{% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label fw-semibold">Ubicación actual</label>
+                                                    {% if equipo.control_stock == 'SERIAL' %}
+                                                    <input class="form-control" value="{{ equipo.ubicacion_display }}" disabled>
+                                                    <small class="text-muted">Producto serializado: la ubicación se calcula automáticamente por cada unidad según sus ingresos, guías y devoluciones.</small>
+                                                    {% else %}
+                                                    <input class="form-control" name="ubicacion_actual" list="ubicacionesSugeridas" value="{{ equipo.ubicacion_actual or '' }}" placeholder="Ej: Almacén, Edificio Torre A, En tránsito...">
+                                                    <small class="text-muted">Se actualiza sola con cada ingreso/salida, pero puedes ajustarla manualmente.</small>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label fw-semibold">Observaciones</label>
+                                                    <textarea class="form-control" name="observaciones" rows="3">{{ equipo.observaciones or '' }}</textarea>
+                                                </div>
+                                            </div>
+                                            <div class="alert alert-warning mt-3 mb-0 small">
+                                                No edites la cantidad desde aquí. Para subir stock usa Ingresos o Ingreso Series; para reducir stock usa Guías, Salidas o Baja.
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <button class="btn btn-primary">Guardar cambios</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal fade" id="bajaEquipo{{ equipo.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content border-0 shadow">
+                                    <form action="/dar_baja_equipo/{{ equipo.id }}" method="POST">
+                                        <div class="modal-header bg-danger text-white">
+                                            <h5 class="modal-title">Dar de baja producto #{{ equipo.id }}</h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p class="mb-2"><strong>{{ equipo.marca }} - {{ equipo.descripcion }}</strong></p>
+                                            <p class="text-muted small">Esta acción no elimina el historial. Cambia el estado a <strong>Baja</strong>, pone el stock en 0 y registra un movimiento de auditoría.</p>
+                                            <label class="form-label fw-semibold">Motivo de baja</label>
+                                            <textarea name="motivo" class="form-control" rows="3" required placeholder="Ej. Registro de prueba, equipo obsoleto, error de inventario..."></textarea>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <button class="btn btn-danger">Confirmar baja</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <tr>
+                            <td colspan="10" class="text-center py-5 text-muted">No existen registros para mostrar.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <datalist id="ubicacionesSugeridas">
+                    <option value="Almacén"></option>
+                    <option value="Stock"></option>
+                    <option value="En tránsito"></option>
+                    <option value="En revisión"></option>
+                    <option value="Instalado"></option>
+                </datalist>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function(){
+    const input = document.getElementById('busquedaRapidaInventario');
+    const rows = Array.from(document.querySelectorAll('#tablaInventario tbody tr[data-search]'));
+    const contador = document.getElementById('contadorInventario');
+    if(!input){ return; }
+    input.addEventListener('input', function(){
+        const q = this.value.toLowerCase().trim();
+        let visibles = 0;
+        rows.forEach(row => {
+            const texto = (row.dataset.search || '').toLowerCase();
+            const ok = !q || texto.includes(q);
+            row.style.display = ok ? '' : 'none';
+            if(ok){ visibles += 1; }
+        });
+        if(contador){ contador.textContent = visibles; }
+    });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,25 @@
+# =====================================================================
+#  Caddyfile - Proxy inverso HTTP de Portero Seguro
+# ---------------------------------------------------------------------
+#  Sirve la aplicacion en el puerto 80 y la reenvia a Flask
+#  (127.0.0.1:5051, solo local).
+#
+#  Acceso desde cualquier equipo de la red local:
+#     - Por IP     :  http://192.168.18.137        (funciona siempre)
+#     - Por nombre :  http://inventario.porteroseguro.com
+#                     (requiere la entrada DNS en el router, una vez)
+#
+#  IMPORTANTE: es HTTP, SIN cifrado. Elegido a proposito para no tener
+#  que instalar certificados en cada equipo. Usar solo en red de confianza.
+#
+#  El bloque ":80" responde a cualquier nombre o IP en el puerto 80, por
+#  eso funciona tanto entrando por la IP como por el dominio local.
+# =====================================================================
+{
+	admin off
+}
+
+:80 {
+	encode gzip
+	reverse_proxy 127.0.0.1:5051
+}
