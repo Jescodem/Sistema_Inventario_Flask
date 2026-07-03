@@ -174,6 +174,7 @@ ROUTE_ACCESS = {
     'crear_usuario': 'admin',
     'editar_usuario': 'admin',
     'resetear_password_usuario': 'admin',
+    'mi_cuenta': 'lectura',
 }
 
 # Endpoints publicos que no requieren sesion iniciada.
@@ -914,7 +915,7 @@ def login():
 
         if usuario['debe_cambiar_password']:
             flash('Por seguridad, cambia tu contrasena temporal antes de continuar.', 'warning')
-            return redirect(url_for('usuarios'))
+            return redirect(url_for('mi_cuenta'))
 
         destino = request.args.get('next')
         if destino and destino.startswith('/'):
@@ -973,6 +974,7 @@ def crear_usuario():
         username = clean_text(request.form.get('username'))
         nombre_completo = clean_text(request.form.get('nombre_completo'))
         rol = clean_text(request.form.get('rol'))
+        password_manual = request.form.get('password') or ''
 
         errores = []
         if not username:
@@ -981,6 +983,8 @@ def crear_usuario():
             errores.append('El nombre completo es obligatorio.')
         if rol not in ROLES_VALIDOS:
             errores.append('El rol seleccionado no es valido.')
+        if password_manual and len(password_manual) < 8:
+            errores.append('La contrasena debe tener al menos 8 caracteres.')
         if username and conn.execute('SELECT 1 FROM usuarios WHERE username = ? COLLATE NOCASE', (username,)).fetchone():
             errores.append('Ya existe un usuario con ese nombre.')
 
@@ -989,17 +993,25 @@ def crear_usuario():
                 flash(error, 'danger')
             return redirect(url_for('usuarios'))
 
-        password_temporal = generar_password_temporal(10)
+        # Si el admin escribe una contrasena, se usa esa (sin forzar cambio).
+        # Si la deja en blanco, se genera una temporal que el usuario debera
+        # cambiar en su primer ingreso.
+        if password_manual:
+            password_final = password_manual
+            debe_cambiar = 0
+            mensaje = f'Usuario "{username}" creado con la contrasena indicada.'
+        else:
+            password_final = generar_password_temporal(10)
+            debe_cambiar = 1
+            mensaje = (f'Usuario "{username}" creado. Contrasena temporal: {password_final} '
+                       '(se le pedira cambiarla al ingresar).')
+
         conn.execute('''
             INSERT INTO usuarios (username, password_hash, nombre_completo, rol, activo, debe_cambiar_password)
-            VALUES (?, ?, ?, ?, 1, 1)
-        ''', (username, hash_password(password_temporal), nombre_completo, rol))
+            VALUES (?, ?, ?, ?, 1, ?)
+        ''', (username, hash_password(password_final), nombre_completo, rol, debe_cambiar))
         conn.commit()
-        flash(
-            f'Usuario "{username}" creado. Contrasena temporal: {password_temporal} '
-            '(se le pedira cambiarla al ingresar).',
-            'success'
-        )
+        flash(mensaje, 'success')
     except sqlite3.IntegrityError:
         conn.rollback()
         flash('Ya existe un usuario con ese nombre.', 'warning')
@@ -1035,6 +1047,22 @@ def editar_usuario(id):
             'UPDATE usuarios SET nombre_completo = ?, rol = ?, activo = ? WHERE id = ?',
             (nombre_completo, rol, activo, id)
         )
+
+        # Cambio opcional de contrasena por el administrador.
+        password_nueva = request.form.get('password_nueva') or ''
+        if password_nueva and len(password_nueva) < 8:
+            conn.commit()
+            flash('Usuario actualizado, pero la contrasena nueva es muy corta (minimo 8): no se cambio.', 'warning')
+            return redirect(url_for('usuarios'))
+        if password_nueva:
+            conn.execute(
+                'UPDATE usuarios SET password_hash = ?, debe_cambiar_password = 0 WHERE id = ?',
+                (hash_password(password_nueva), id)
+            )
+            conn.commit()
+            flash('Usuario actualizado y contrasena cambiada correctamente.', 'success')
+            return redirect(url_for('usuarios'))
+
         conn.commit()
         flash('Usuario actualizado correctamente.', 'success')
     except Exception as e:
@@ -1070,6 +1098,45 @@ def resetear_password_usuario(id):
     finally:
         conn.close()
     return redirect(url_for('usuarios'))
+
+
+@app.route('/mi_cuenta', methods=['GET', 'POST'])
+def mi_cuenta():
+    """Autoservicio: cualquier usuario con sesion (incluido lectura/operador)
+    puede cambiar su propia contrasena. Aqui aterrizan los usuarios con
+    contrasena temporal; antes se les mandaba a /usuarios, que es solo para
+    administradores, y quedaban sin poder cambiarla."""
+    conn = get_db_connection()
+    try:
+        if request.method == 'POST':
+            actual = request.form.get('password_actual') or ''
+            nueva = request.form.get('password_nueva') or ''
+            confirmacion = request.form.get('password_confirmacion') or ''
+
+            yo = conn.execute('SELECT * FROM usuarios WHERE id = ?', (session['user_id'],)).fetchone()
+            if not yo or not check_password(yo['password_hash'], actual):
+                flash('Tu contrasena actual no es correcta.', 'danger')
+            elif len(nueva) < 8:
+                flash('La nueva contrasena debe tener al menos 8 caracteres.', 'danger')
+            elif nueva != confirmacion:
+                flash('La confirmacion no coincide con la nueva contrasena.', 'danger')
+            else:
+                conn.execute(
+                    'UPDATE usuarios SET password_hash = ?, debe_cambiar_password = 0 WHERE id = ?',
+                    (hash_password(nueva), session['user_id'])
+                )
+                conn.commit()
+                flash('Tu contrasena fue actualizada correctamente.', 'success')
+                return redirect(url_for('index'))
+            return redirect(url_for('mi_cuenta'))
+
+        yo = conn.execute(
+            'SELECT username, nombre_completo, rol, debe_cambiar_password FROM usuarios WHERE id = ?',
+            (session['user_id'],)
+        ).fetchone()
+        return render_template('mi_cuenta.html', yo=yo)
+    finally:
+        conn.close()
 
 
 @app.route('/')

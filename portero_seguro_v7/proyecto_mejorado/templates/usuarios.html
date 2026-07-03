@@ -106,7 +106,11 @@
                             {% for r in roles %}<option value="{{ r }}" {% if r==u.rol %}selected{% endif %}>{{ r|upper }}</option>{% endfor %}
                         </select>
                     </div>
-                    <div class="form-check"><input type="checkbox" class="form-check-input" name="activo" id="activo{{ u.id }}" {% if u.activo %}checked{% endif %}><label class="form-check-label" for="activo{{ u.id }}">Usuario activo</label></div>
+                    <div class="form-check mb-3"><input type="checkbox" class="form-check-input" name="activo" id="activo{{ u.id }}" {% if u.activo %}checked{% endif %}><label class="form-check-label" for="activo{{ u.id }}">Usuario activo</label></div>
+                    <div class="mb-1"><label class="form-label">Nueva contraseña <span class="text-muted">(opcional)</span></label>
+                        <input type="text" name="password_nueva" class="form-control" minlength="8" placeholder="Déjala en blanco para no cambiarla">
+                        <div class="form-text">Escribe una (mín. 8 caracteres) para fijarle una contraseña ahora mismo.</div>
+                    </div>
                 </div>
                 <div class="modal-footer"><button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary btn-sm">Guardar</button></div>
             </form>
@@ -131,7 +135,10 @@
                             <option value="admin">Admin — control total</option>
                         </select>
                     </div>
-                    <div class="alert alert-info mb-0" style="font-size:.78rem;"><i class="bi bi-info-circle"></i> Se generará una contraseña temporal que deberás compartir con la persona.</div>
+                    <div class="mb-3"><label class="form-label">Contraseña <span class="text-muted">(opcional)</span></label>
+                        <input type="text" name="password" class="form-control" minlength="8" placeholder="Déjala en blanco para generar una temporal">
+                        <div class="form-text">Si escribes una (mín. 8 caracteres), esa será su contraseña. Si la dejas vacía, el sistema genera una temporal.</div>
+                    </div>
                 </div>
                 <div class="modal-footer"><button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-person-plus"></i> Crear usuario</button></div>
             </form>

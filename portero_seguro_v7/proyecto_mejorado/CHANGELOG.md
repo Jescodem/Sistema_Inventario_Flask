@@ -7,6 +7,16 @@ El formato agrupa por **versiones técnicas** (v6, v7) y por **parches funcional
 
 ---
 
+## [Fix] — Gestión de contraseñas de usuarios
+
+- **El administrador ahora puede fijar la contraseña** al crear un usuario (campo opcional;
+  si se deja en blanco se genera una temporal como antes) y **cambiarla desde el modal de edición**.
+- **Nueva página "Mi cuenta"** (`/mi_cuenta`) accesible a cualquier rol para cambiar la propia
+  contraseña, con acceso desde el bloque de usuario del menú lateral.
+- **Corregido:** los usuarios no administradores con contraseña temporal eran redirigidos a
+  `/usuarios` (solo admin) y quedaban sin poder cambiarla; ahora van a `/mi_cuenta`.
+- +6 pruebas (34 en total).
+
 ## [Pruebas] — Cobertura ampliada
 
 - Nueva suite `tests/test_operaciones.py` (18 pruebas): guías por cantidad y serializadas,

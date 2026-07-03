@@ -68,6 +68,9 @@ class OpsBase(unittest.TestCase):
 
     # ── Sesion ───────────────────────────────────────────────────────────
     def login(self, username, password=PWD):
+        # Cliente nuevo en cada login: evita arrastrar la sesion anterior
+        # (login() redirige a index si ya hay sesion y no habria token CSRF).
+        self.client = app_module.app.test_client()
         r = self.client.get('/login')
         token = re.search(r'name="csrf_token" value="([^"]+)"', r.get_data(as_text=True)).group(1)
         return self.client.post('/login', data={
@@ -357,6 +360,78 @@ class TestConfiguracionSesion(unittest.TestCase):
     def test_cookies_endurecidas(self):
         self.assertTrue(app_module.app.config['SESSION_COOKIE_HTTPONLY'])
         self.assertEqual(app_module.app.config['SESSION_COOKIE_SAMESITE'], 'Lax')
+
+
+class TestGestionUsuarios(OpsBase):
+
+    def _crear_usuario(self, username, rol='operador', password=None):
+        self.login('adm_test')
+        data = {'username': username, 'nombre_completo': f'Nombre {username}',
+                'rol': rol, 'csrf_token': self.csrf()}
+        if password is not None:
+            data['password'] = password
+        return self.client.post('/usuarios/crear', data=data, follow_redirects=False)
+
+    def test_crear_con_password_fijada_permite_entrar(self):
+        self._crear_usuario('u_fijo', password='ClaveFija123')
+        u = self._scalar("SELECT debe_cambiar_password FROM usuarios WHERE username='u_fijo'")
+        self.assertEqual(u, 0, 'Con password fijada no debe forzar cambio')
+        # El usuario nuevo puede iniciar sesion con esa contrasena
+        r = self.login('u_fijo', 'ClaveFija123')
+        self.assertEqual(r.status_code, 302)
+        self.assertNotIn('/login', r.headers['Location'], 'Debe entrar, no rebotar al login')
+
+    def test_crear_sin_password_genera_temporal(self):
+        self._crear_usuario('u_temp')
+        u = self._scalar("SELECT debe_cambiar_password FROM usuarios WHERE username='u_temp'")
+        self.assertEqual(u, 1, 'Sin password debe generar temporal y forzar cambio')
+
+    def test_password_corta_es_rechazada_al_crear(self):
+        self._crear_usuario('u_corto', password='123')
+        existe = self._scalar("SELECT COUNT(*) FROM usuarios WHERE username='u_corto'")
+        self.assertEqual(existe, 0, 'Contrasena < 8 no debe crear el usuario')
+
+    def test_admin_actualiza_password_desde_edicion(self):
+        self._crear_usuario('u_edit', password='Inicial123')
+        uid = self._scalar("SELECT id FROM usuarios WHERE username='u_edit'")
+        self.login('adm_test')
+        self.client.post(f'/usuarios/{uid}/editar', data={
+            'nombre_completo': 'Nombre u_edit', 'rol': 'operador', 'activo': 'on',
+            'password_nueva': 'Cambiada456', 'csrf_token': self.csrf(),
+        }, follow_redirects=False)
+        # La nueva contrasena debe funcionar y la vieja no
+        h = self._scalar("SELECT password_hash FROM usuarios WHERE id=?", (uid,))
+        from auth import check_password
+        self.assertTrue(check_password(h, 'Cambiada456'))
+        self.assertFalse(check_password(h, 'Inicial123'))
+
+    def test_no_admin_puede_cambiar_su_propia_password(self):
+        # Un operador con sesion accede a /mi_cuenta y cambia su clave
+        self._crear_usuario('u_self', rol='operador', password='Inicial123')
+        self.login('u_self', 'Inicial123')
+        r = self.client.get('/mi_cuenta')
+        self.assertEqual(r.status_code, 200, 'Un operador SÍ debe poder abrir Mi cuenta')
+        self.client.post('/mi_cuenta', data={
+            'password_actual': 'Inicial123', 'password_nueva': 'NuevaProp789',
+            'password_confirmacion': 'NuevaProp789', 'csrf_token': self.csrf(),
+        }, follow_redirects=False)
+        uid = self._scalar("SELECT id FROM usuarios WHERE username='u_self'")
+        from auth import check_password
+        h = self._scalar("SELECT password_hash FROM usuarios WHERE id=?", (uid,))
+        self.assertTrue(check_password(h, 'NuevaProp789'), 'El operador debe poder cambiar su clave')
+
+    def test_usuario_con_password_temporal_va_a_mi_cuenta(self):
+        self._crear_usuario('u_forzado')  # sin password -> debe_cambiar=1
+        # Fijamos una clave conocida directamente para probar el redirect del login
+        conn = get_db_connection()
+        from auth import hash_password
+        conn.execute("UPDATE usuarios SET password_hash=? WHERE username='u_forzado'",
+                     (hash_password('Temp12345'),))
+        conn.commit(); conn.close()
+        r = self.login('u_forzado', 'Temp12345')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/mi_cuenta', r.headers['Location'],
+                      'Con contrasena temporal debe ir a Mi cuenta, no a /usuarios')
 
 
 if __name__ == '__main__':

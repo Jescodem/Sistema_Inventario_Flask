@@ -350,11 +350,11 @@
         <!-- User footer -->
         <div class="sb-footer">
             <div class="sb-user">
-                <div class="sb-avatar">{{ (usuario_actual or 'U')[0].upper() }}</div>
-                <div class="sb-user-info logo-text">
+                <a href="{{ url_for('mi_cuenta') }}" class="sb-avatar" title="Mi cuenta / cambiar contraseña" style="text-decoration:none;">{{ (usuario_actual or 'U')[0].upper() }}</a>
+                <a href="{{ url_for('mi_cuenta') }}" class="sb-user-info logo-text" title="Mi cuenta / cambiar contraseña" style="text-decoration:none;">
                     <div class="sb-user-name">{{ usuario_actual }}</div>
                     <div class="sb-user-role">{{ rol_actual }}</div>
-                </div>
+                </a>
                 <form action="{{ url_for('logout') }}" method="POST" class="d-inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <button type="submit" class="sb-logout" title="Cerrar sesión">
