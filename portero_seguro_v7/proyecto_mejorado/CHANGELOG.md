@@ -7,6 +7,14 @@ El formato agrupa por **versiones técnicas** (v6, v7) y por **parches funcional
 
 ---
 
+## [Fix] — Login por dominio tras el cambio HTTPS→HTTP
+
+- La cookie de sesión pasó a llamarse `ps_session`. Al servir antes el dominio por HTTPS, el
+  navegador guardaba una cookie `session` marcada `Secure` que, por la regla "Leave Secure Cookies
+  Alone", un sitio HTTP no puede sobreescribir: el login funcionaba por IP pero no por
+  `inventario.porteroseguro.com`. Con el nombre nuevo, la cookie antigua queda ignorada y el acceso
+  funciona igual por IP que por dominio (sin tener que limpiar cookies en cada equipo).
+
 ## [Fix] — Gestión de contraseñas de usuarios
 
 - **El administrador ahora puede fijar la contraseña** al crear un usuario (campo opcional;

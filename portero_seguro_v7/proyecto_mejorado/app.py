@@ -96,6 +96,13 @@ def _login_registrar_fallo(clave):
 
 def _login_limpiar(clave):
     _login_attempts.pop(clave, None)
+# Nombre propio de la cookie de sesion. Evita colisionar con una cookie
+# 'session' antigua marcada como Secure (de cuando el dominio se servia por
+# HTTPS): por la regla "Leave Secure Cookies Alone", un sitio HTTP no puede
+# sobreescribir una cookie Secure, y el login no llegaba a persistir en el
+# navegador al entrar por el dominio. Con un nombre nuevo, la cookie vieja
+# queda ignorada y la sesion funciona igual por IP que por dominio.
+app.config['SESSION_COOKIE_NAME'] = 'ps_session'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # Si la app se sirve detras de HTTPS (recomendado), activa esto por entorno:
