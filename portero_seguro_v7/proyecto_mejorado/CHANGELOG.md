@@ -7,6 +7,17 @@ El formato agrupa por **versiones técnicas** (v6, v7) y por **parches funcional
 
 ---
 
+## [Mejoras de operación] — Excel, alertas de stock y sesión
+
+- **Exportación a Excel** (`/exportar/<tipo>`): inventario, movimientos (kardex), guías y series,
+  con botón "Excel" en cada pantalla. Nuevo módulo `excel_export.py` (openpyxl, ahora en requirements).
+- **Alertas de reposición** en el dashboard: aviso con los productos en o bajo su stock mínimo
+  (incluye los que llegaron a 0), ordenados del más crítico al menos.
+- **Expiración de sesión por inactividad**: 30 minutos (ventana deslizante), configurable con
+  `SESSION_TIMEOUT_MINUTES`. Importante en equipos compartidos.
+- **Manual de usuario con capturas de pantalla** reales (generadas con datos de demostración,
+  sin exponer datos reales) y documentación técnica actualizada.
+
 ## [Despliegue] — Acceso en red con proxy inverso
 
 - **Proxy inverso Caddy** en el puerto 80 delante de Flask (que ahora escucha solo en `127.0.0.1:5051`).

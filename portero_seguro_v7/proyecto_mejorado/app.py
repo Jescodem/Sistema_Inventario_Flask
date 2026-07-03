@@ -4,7 +4,7 @@ import os
 import re
 import secrets
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 from auth import (
@@ -14,6 +14,7 @@ from auth import (
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 from pdf_render import render_guia_pdf
+from excel_export import construir_libro
 from db import (
     DATABASE, get_db_connection, init_db,
     clean_text, normalizar_estados_por_stock,
@@ -99,6 +100,12 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # Si la app se sirve detras de HTTPS (recomendado), activa esto por entorno:
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
+# Expiracion de sesion por inactividad (ventana deslizante): si no hay
+# actividad durante SESSION_TIMEOUT_MINUTES, la sesion caduca y se pide
+# login de nuevo. Cada peticion renueva el plazo. Importante en equipos
+# compartidos del almacen.
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(
+    minutes=int(os.environ.get('SESSION_TIMEOUT_MINUTES', '30')))
 
 # ── Proxy inverso (Caddy con HTTPS) ────────────────────────────────────────
 # Cuando la app se sirve detras del proxy inverso (lanzar.bat levanta Caddy
@@ -139,6 +146,7 @@ ROUTE_ACCESS = {
     'editar_guia': 'lectura',
     'pdf_guia': 'lectura',
     'movimientos': 'lectura',
+    'exportar': 'lectura',
     'configuracion': 'admin',
     'eliminar_relacion_categoria_marca': 'admin',
     'limpiar_relaciones_vacias': 'admin',
@@ -1155,6 +1163,19 @@ def index():
         AND cantidad <= CASE WHEN stock_minimo > 0 THEN stock_minimo ELSE 5 END
     """).fetchone()[0] or 0
 
+    # Alertas de reposicion: productos con stock minimo definido cuyo stock
+    # actual ya lo alcanzo o quedo por debajo (incluye los que llegaron a 0
+    # y pasaron a 'Sin Stock'). Ordenados del mas critico al menos.
+    alertas_stock = conn.execute('''
+        SELECT id, categoria, marca, descripcion, cantidad, stock_minimo
+        FROM equipos
+        WHERE estado IN ('En Stock', 'Sin Stock')
+          AND stock_minimo > 0
+          AND cantidad <= stock_minimo
+        ORDER BY (cantidad * 1.0) / stock_minimo, descripcion
+        LIMIT 15
+    ''').fetchall()
+
     categorias_db = conn.execute('SELECT nombre FROM categorias ORDER BY nombre').fetchall()
     conn.close()
     return render_template(
@@ -1162,7 +1183,7 @@ def index():
         en_revision=en_revision, critico=critico,
         search_query=search_query, categoria_filter=categoria_filter,
         estado_filter=estado_filter, categorias_db=categorias_db,
-        estados=ESTADOS_EQUIPO
+        estados=ESTADOS_EQUIPO, alertas_stock=alertas_stock
     )
 
 
@@ -2401,6 +2422,100 @@ def movimientos():
         'movimientos.html', movimientos=movimientos_data,
         tipos=TIPOS_MOVIMIENTO, f_tipo=f_tipo, f_fecha=f_fecha, f_q=f_q
     )
+
+
+@app.route('/exportar/<tipo>')
+def exportar(tipo):
+    """Descarga en Excel (.xlsx) de inventario, movimientos, guias o series.
+
+    Las consultas viven aqui; excel_export.construir_libro solo maqueta.
+    Accesible para cualquier rol con sesion (lectura), igual que las
+    pantallas correspondientes.
+    """
+    conn = get_db_connection()
+    try:
+        if tipo == 'inventario':
+            titulo = 'Inventario — Portero Seguro'
+            encabezados = ['ID', 'Categoría', 'Marca', 'Modelo / Descripción',
+                           'Control', 'Estado', 'Cantidad', 'Stock mínimo',
+                           'SKU', 'MAC', 'Observaciones', 'Creado']
+            filas = conn.execute('''
+                SELECT id, categoria, marca, descripcion,
+                       COALESCE(control_stock, 'CANTIDAD'), estado,
+                       cantidad, stock_minimo, COALESCE(sku, ''),
+                       COALESCE(mac, ''), COALESCE(observaciones, ''),
+                       COALESCE(fecha_creacion, '')
+                FROM equipos
+                ORDER BY categoria, marca, descripcion
+            ''').fetchall()
+
+        elif tipo == 'movimientos':
+            titulo = 'Movimientos (kardex) — Portero Seguro'
+            encabezados = ['ID', 'Fecha', 'Tipo', 'Producto', 'Marca',
+                           'Cantidad', 'Stock anterior', 'Stock nuevo',
+                           'Referencia', 'Usuario', 'Observaciones']
+            filas = conn.execute('''
+                SELECT m.id, COALESCE(m.fecha, ''), m.tipo, e.descripcion,
+                       e.marca, m.cantidad, m.stock_anterior, m.stock_nuevo,
+                       COALESCE(m.referencia, ''), COALESCE(m.usuario, ''),
+                       COALESCE(m.observaciones, '')
+                FROM movimientos m
+                JOIN equipos e ON e.id = m.equipo_id
+                ORDER BY m.id DESC
+            ''').fetchall()
+
+        elif tipo == 'guias':
+            titulo = 'Guías de salida — Portero Seguro'
+            encabezados = ['Código', 'Fecha', 'Estado', 'Solicitante',
+                           'Destino', 'Proyecto', 'Entregado por',
+                           'Recibido por', 'Aprobado por', 'Ítems',
+                           'Unidades', 'Motivo anulación']
+            filas = [
+                (guia_codigo(g['id']), g['fecha'] or '', g['estado'] or 'ACTIVA',
+                 g['personal'], g['destino'], g['proyecto'] or '',
+                 g['entregado_por'] or '', g['recibido_por'] or '',
+                 g['aprobado_por'] or '', g['items'] or 0,
+                 g['unidades'] or 0, g['motivo_anulacion'] or '')
+                for g in conn.execute('''
+                    SELECT g.*, COUNT(gd.id) AS items,
+                           COALESCE(SUM(gd.cantidad), 0) AS unidades
+                    FROM guias_salida g
+                    LEFT JOIN guia_detalle gd ON gd.guia_id = g.id
+                    GROUP BY g.id
+                    ORDER BY g.id DESC
+                ''').fetchall()
+            ]
+
+        elif tipo == 'series':
+            titulo = 'Series individuales — Portero Seguro'
+            encabezados = ['ID', 'Serial', 'MAC', 'Producto', 'Marca',
+                           'Categoría', 'Estado', 'Ubicación actual',
+                           'Guía', 'Ingreso', 'Observaciones']
+            filas = [
+                (s['id'], s['serial'], s['mac'] or '', s['descripcion'],
+                 s['marca'], s['categoria'], s['estado'],
+                 s['ubicacion_actual'] or '',
+                 guia_codigo(s['guia_id']) if s['guia_id'] else '',
+                 s['fecha_ingreso'] or '', s['observaciones'] or '')
+                for s in conn.execute('''
+                    SELECT es.*, e.descripcion, e.marca, e.categoria
+                    FROM equipo_series es
+                    JOIN equipos e ON e.id = es.equipo_id
+                    ORDER BY es.id DESC
+                ''').fetchall()
+            ]
+
+        else:
+            abort(404)
+
+        libro = construir_libro(titulo, encabezados, [tuple(f) for f in filas])
+        nombre = f'{tipo}_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx'
+        return send_file(
+            libro, as_attachment=True, download_name=nombre,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    finally:
+        conn.close()
 
 
 @app.route('/configuracion', methods=['GET', 'POST'])

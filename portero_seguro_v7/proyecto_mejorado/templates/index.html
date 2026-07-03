@@ -49,6 +49,9 @@
         <p class="page-subtitle">Control de equipos, materiales y activos tecnológicos</p>
     </div>
     <div class="d-flex gap-2">
+        <a href="/exportar/inventario" class="btn btn-outline-secondary btn-sm" title="Descargar el inventario en Excel">
+            <i class="bi bi-file-earmark-excel"></i> Excel
+        </a>
         <a href="/ingreso_series" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-upc-scan"></i> Series
         </a>
@@ -89,6 +92,25 @@
         </div>
     </div>
 </div>
+
+<!-- Alertas de reposición (stock en o bajo el mínimo) -->
+{% if alertas_stock %}
+<div class="mb-4" style="background:#FDECEA;border:1px solid #F5C6C0;border-left:4px solid #C0392B;border-radius:10px;padding:12px 16px;">
+    <div style="font-weight:700;font-size:.9rem;color:#8E2F23;margin-bottom:8px;">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        Reposición pendiente: {{ alertas_stock|length }} producto(s) en o bajo su stock mínimo
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        {% for a in alertas_stock %}
+        <a href="/?q={{ a.descripcion|urlencode }}" title="{{ a.categoria }} · stock {{ a.cantidad }} / mínimo {{ a.stock_minimo }}"
+           style="text-decoration:none;background:#fff;border:1px solid #F0B9B1;border-radius:16px;padding:3px 12px;font-size:.78rem;color:#7A2A20;">
+            {{ a.marca }} {{ a.descripcion }}
+            <strong style="color:{{ '#C0392B' if a.cantidad == 0 else '#B5560A' }};">&nbsp;{{ a.cantidad }}/{{ a.stock_minimo }}</strong>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
 
 <!-- Search -->
 <div class="search-bar mb-3">
