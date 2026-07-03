@@ -7,6 +7,15 @@ El formato agrupa por **versiones técnicas** (v6, v7) y por **parches funcional
 
 ---
 
+## [Pruebas] — Cobertura ampliada
+
+- Nueva suite `tests/test_operaciones.py` (18 pruebas): guías por cantidad y serializadas,
+  anulación con reintegro, devolución parcial de series, permisos por rol (operador/lectura/admin),
+  dar de baja (normal y bloqueada por guía activa), unificación de producto, validación SKU/MAC,
+  exportación a Excel, alertas de stock mínimo y configuración de sesión.
+- Total: **28 pruebas** (`python -m unittest discover -s tests -v`). Siguen usando una base
+  temporal vía `PORTERO_DB`: nunca tocan `inventario.db`.
+
 ## [Mejoras de operación] — Excel, alertas de stock y sesión
 
 - **Exportación a Excel** (`/exportar/<tipo>`): inventario, movimientos (kardex), guías y series,

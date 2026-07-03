@@ -89,9 +89,12 @@ proyecto_mejorado/
 ## Pruebas
 
 ```bash
-python -m unittest tests.test_flujos -v
+python -m unittest discover -s tests -v
 ```
 
+**28 pruebas** de integración en dos suites (`test_flujos.py` y `test_operaciones.py`):
+seguridad y descuento atómico; guías por cantidad y serializadas, anulación, devolución
+parcial, permisos por rol, bajas, ingresos, exportación a Excel y alertas de stock.
 Usan una base temporal (`PORTERO_DB`); nunca tocan `inventario.db`.
 
 ## Documentación
