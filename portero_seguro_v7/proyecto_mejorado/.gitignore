@@ -16,6 +16,9 @@ inventario1.db
 # Logs de aplicación
 logs/
 
+# Respaldos automáticos de la base de datos (no se versionan)
+backups/
+
 # Proxy inverso HTTPS (Caddy): binario y datos/certificados locales.
 # El binario se descarga solo al lanzar; la CA se regenera por máquina.
 caddy.exe
