@@ -29,7 +29,7 @@
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <label class="form-label fw-semibold">Buscar edificio</label>
-            <input class="form-control" id="buscarEdificio" placeholder="Escribe nombre, ubicación, comentario o enlace...">
+            <input class="form-control" id="buscarEdificio" aria-label="Buscar edificio" placeholder="Nombre, ubicación, IP, anexo, comentario...">
         </div>
     </div>
 
@@ -155,7 +155,7 @@
 {% for e in edificios %}
 <div class="modal fade" id="modalVerEdificio{{ e.id }}" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content border-0 shadow">
-        <div class="modal-header bg-primary text-white"><h5 class="modal-title">Detalle de edificio</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+        <div class="modal-header bg-primary text-white"><h5 class="modal-title">Detalle de edificio</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body">
             <p><strong>Nombre:</strong> {{ e.nombre }}</p>
             <p><strong>Ubicación:</strong> {{ e.ubicacion or '-' }}</p>
@@ -194,7 +194,7 @@
 <div class="modal fade" id="modalEditarEdificio{{ e.id }}" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content border-0 shadow">
         <form action="/edificios/editar/{{ e.id }}" method="POST">
-            <div class="modal-header bg-primary text-white"><h5 class="modal-title">Editar edificio</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-header"><h5 class="modal-title">Editar edificio</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body row g-3">
                 <div class="col-md-6"><label class="form-label fw-semibold">Nombre</label><input name="nombre" class="form-control" value="{{ e.nombre }}" required></div>
                 <div class="col-md-6"><label class="form-label fw-semibold">Ubicación / dirección</label><input name="ubicacion" class="form-control" value="{{ e.ubicacion or '' }}"></div>
@@ -213,7 +213,7 @@
     <div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow">
         <form id="formEditarIp" method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <div class="modal-header bg-primary text-white"><h5 class="modal-title">Editar punto de red</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-header"><h5 class="modal-title">Editar punto de red</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body row g-3">
                 <div class="col-md-6"><label class="form-label fw-semibold">Punto / equipo</label><input name="nombre" id="edipNombre" class="form-control"></div>
                 <div class="col-md-6"><label class="form-label fw-semibold">IP</label><input name="ip" id="edipIp" class="form-control" placeholder="192.168.10.101"></div>
@@ -231,7 +231,7 @@
 <div class="modal fade" id="modalNuevoEdificio" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content border-0 shadow">
         <form action="/edificios" method="POST">
-            <div class="modal-header bg-primary text-white"><h5 class="modal-title">Nuevo edificio / obra</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-header"><h5 class="modal-title">Nuevo edificio / obra</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body row g-3">
                 <div class="col-md-6"><label class="form-label fw-semibold">Nombre</label><input name="nombre" class="form-control" required placeholder="Ej. Edificio Central"></div>
                 <div class="col-md-6"><label class="form-label fw-semibold">Ubicación / dirección</label><input name="ubicacion" class="form-control" placeholder="Av., distrito, referencia..."></div>

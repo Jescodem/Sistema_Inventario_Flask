@@ -621,5 +621,39 @@ class TestMejoras(OpsBase):
         self.assertEqual(n, 1, 'El rename debe propagarse a seguimiento_equipos')
 
 
+class TestConfigEdificios(OpsBase):
+
+    def test_eliminar_edificio_con_ips_desde_config(self):
+        # Regresion: borrar desde Configuracion un edificio con red no debe
+        # fallar por la clave foranea (antes DELETE edificios sin limpiar ips).
+        conn = get_db_connection()
+        conn.execute("INSERT OR IGNORE INTO edificios (nombre) VALUES ('EDIF_CFG_DEL')")
+        eid = conn.execute("SELECT id FROM edificios WHERE nombre='EDIF_CFG_DEL'").fetchone()[0]
+        conn.execute("INSERT INTO edificio_ips (edificio_id, nombre, ip) VALUES (?, 'Lobby', '192.0.2.10')", (eid,))
+        conn.commit(); conn.close()
+        self.login('adm_test')
+        self.client.post(f'/eliminar_catalogo/edificio/{eid}',
+                         data={'csrf_token': self.csrf()}, follow_redirects=False)
+        self.assertIsNone(self._scalar("SELECT id FROM edificios WHERE id=?", (eid,)),
+                          'Debe eliminarse el edificio')
+        self.assertIsNone(self._scalar("SELECT id FROM edificio_ips WHERE edificio_id=?", (eid,)),
+                          'Y su red con el')
+
+    def test_renombrar_desde_config_propaga_seguimiento_equipos(self):
+        conn = get_db_connection()
+        conn.execute("INSERT OR IGNORE INTO edificios (nombre) VALUES ('EDIF_CFG_REN')")
+        eid = conn.execute("SELECT id FROM edificios WHERE nombre='EDIF_CFG_REN'").fetchone()[0]
+        conn.execute("""INSERT INTO seguimiento_equipos (nombre_equipo, edificio, fecha_dejado, dejado_por)
+                        VALUES ('UPS', 'EDIF_CFG_REN', '2026-01-01', 'T')""")
+        conn.commit(); conn.close()
+        self.login('adm_test')
+        self.client.post(f'/editar_catalogo/edificio/{eid}', data={
+            'nuevo_nombre': 'EDIF_CFG_REN2', 'ubicacion': '', 'mapa_url': '',
+            'csrf_token': self.csrf(),
+        }, follow_redirects=False)
+        self.assertEqual(
+            self._scalar("SELECT COUNT(*) FROM seguimiento_equipos WHERE edificio='EDIF_CFG_REN2'"), 1)
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

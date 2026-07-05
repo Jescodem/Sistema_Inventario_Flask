@@ -2867,6 +2867,7 @@ def editar_catalogo(tipo, id):
                     conn.execute('UPDATE seguimiento_herramientas SET edificio = ? WHERE edificio = ?', (nuevo_nombre, anterior))
                 except sqlite3.OperationalError:
                     pass
+                conn.execute('UPDATE seguimiento_equipos SET edificio = ? WHERE edificio = ?', (nuevo_nombre, anterior))
         else:
             flash('Tipo de catalogo invalido.', 'danger')
             conn.close()
@@ -2942,9 +2943,14 @@ def eliminar_catalogo(tipo, id):
             if row:
                 usado = conn.execute('SELECT COUNT(*) FROM guias_salida WHERE destino = ?', (row['nombre'],)).fetchone()[0]
                 usado += conn.execute('SELECT COUNT(*) FROM salidas WHERE destino = ?', (row['nombre'],)).fetchone()[0]
+                usado += conn.execute('SELECT COUNT(*) FROM avances_actividades WHERE edificio = ?', (row['nombre'],)).fetchone()[0]
+                usado += conn.execute('SELECT COUNT(*) FROM seguimiento_herramientas WHERE edificio = ?', (row['nombre'],)).fetchone()[0]
                 if usado:
-                    flash('No se puede eliminar un edificio usado en guias o salidas.', 'warning')
+                    flash('No se puede eliminar un edificio usado en guias, salidas, avances o seguimiento.', 'warning')
                 else:
+                    # Su red (edificio_ips) le pertenece: se elimina primero
+                    # para no violar la clave foranea.
+                    conn.execute('DELETE FROM edificio_ips WHERE edificio_id = ?', (id,))
                     conn.execute('DELETE FROM edificios WHERE id = ?', (id,))
                     flash('Edificio eliminado correctamente.', 'success')
 

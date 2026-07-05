@@ -15,12 +15,16 @@ Aplicadas tras una auditoría multi-agente del código (hallazgos de bajo riesgo
   `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy`, y `Cache-Control: no-store` en páginas
   con datos sensibles). Filtro `safe_url`: los enlaces de mapa solo se activan si son
   `http(s)` (evita `javascript:`/`data:`) y llevan `rel="noopener"`.
-- **Integridad de datos:** renombrar un edificio ahora propaga el nuevo nombre también a
-  `seguimiento_equipos` (antes solo a guías, salidas, avances y seguimiento de herramientas).
+- **Integridad de datos:** renombrar un edificio propaga el nuevo nombre también a
+  `seguimiento_equipos` (en las **dos** rutas de rename: Edificios y Configuración).
+  Además, **eliminar un edificio desde Configuración** ahora limpia su red (`edificio_ips`)
+  antes de borrar — si no, fallaba por la clave foránea en cualquier edificio con IPs — y usa
+  el mismo chequeo de uso (guías, salidas, avances, seguimiento) que la vista de Edificios.
 - **Diseño:** la pantalla de Edificios se alinea con el resto de la app (título `page-title`,
-  iconos Bootstrap en vez de emojis).
+  iconos Bootstrap en vez de emojis, modales sin el azul que desentonaba con el tema naranja) y
+  el buscador tiene `aria-label` (accesibilidad) y busca también por IP/anexo.
 - **Limpieza:** se elimina código muerto (`row_to_dict`) e import sin usar (`ROLE_LEVELS`).
-- Suite: **47 pruebas**.
+- Suite: **49 pruebas**.
 
 ## [Función] — Red de edificios: edición inline y copiar credenciales
 
