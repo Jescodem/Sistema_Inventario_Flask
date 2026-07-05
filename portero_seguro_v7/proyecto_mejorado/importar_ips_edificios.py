@@ -6,16 +6,18 @@ Excel corporativo "Extensiones Actualizadas.xlsx" (hoja ExtensionesIP).
 Estructura esperada de la hoja:
     col A: numero de bloque   col B: nombre del edificio (solo en la 1a fila)
     col C: punto/equipo       col D: IP        col E: anexo
-    col F: descripcion        col G/H: usuario/clave  (NO se importan)
+    col F: descripcion        col G: usuario   col H: clave
 
 Comportamiento:
 - Crea el edificio si no existe (comparacion sin distinguir mayusculas) y
   reutiliza el existente si ya esta registrado.
 - Inserta cada punto en edificio_ips, evitando duplicados exactos
-  (mismo edificio + nombre + ip + anexo). Es seguro re-ejecutarlo.
+  (mismo edificio + nombre + ip + anexo). En los puntos ya existentes
+  actualiza usuario/clave/notas con lo que traiga el Excel. Es seguro
+  re-ejecutarlo.
 - Normaliza IPs que Excel guardo como numero (192168100101 -> 192.168.100.101).
-- Por seguridad NO importa las columnas de usuario/clave: la vista de
-  edificios la ve cualquier usuario del sistema.
+- Importa tambien usuario y clave de cada equipo (decision del
+  administrador: cualquier usuario del sistema con sesion puede verlas).
 
 Uso:
     python importar_ips_edificios.py ["ruta\\al\\Excel.xlsx"]
@@ -85,7 +87,7 @@ def main():
     edificios_nuevos = 0
     edificios_existentes = 0
     puntos_insertados = 0
-    puntos_duplicados = 0
+    puntos_actualizados = 0
     filas_omitidas = 0
 
     edificio_id = None
@@ -97,6 +99,8 @@ def main():
         ip = normalizar_ip(fila[3] if len(fila) > 3 else None)
         anexo = celda(fila[4] if len(fila) > 4 else None)
         descripcion = celda(fila[5] if len(fila) > 5 else None)
+        usuario = celda(fila[6] if len(fila) > 6 else None)
+        clave = celda(fila[7] if len(fila) > 7 else None)
 
         # ¿Empieza un bloque de edificio nuevo?
         if nombre_edificio:
@@ -130,19 +134,29 @@ def main():
             nombre_punto = descripcion or 'Equipo'
 
         ya_existe = conn.execute('''
-            SELECT 1 FROM edificio_ips
+            SELECT id FROM edificio_ips
             WHERE edificio_id = ? AND nombre = ? COLLATE NOCASE
               AND COALESCE(ip, '') = ? AND COALESCE(anexo, '') = ?
         ''', (edificio_id, nombre_punto, ip, anexo)).fetchone()
         if ya_existe:
-            puntos_duplicados += 1
+            # Punto ya registrado: refresca credenciales y notas con lo que
+            # traiga el Excel (sin pisar con vacios).
+            conn.execute('''
+                UPDATE edificio_ips
+                SET usuario = CASE WHEN ? <> '' THEN ? ELSE usuario END,
+                    clave = CASE WHEN ? <> '' THEN ? ELSE clave END,
+                    descripcion = CASE WHEN ? <> '' THEN ? ELSE descripcion END
+                WHERE id = ?
+            ''', (usuario, usuario, clave, clave, descripcion, descripcion,
+                  ya_existe['id']))
+            puntos_actualizados += 1
             continue
 
         orden += 1
         conn.execute('''
-            INSERT INTO edificio_ips (edificio_id, nombre, ip, anexo, descripcion, orden)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (edificio_id, nombre_punto, ip, anexo, descripcion, orden))
+            INSERT INTO edificio_ips (edificio_id, nombre, ip, anexo, descripcion, usuario, clave, orden)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (edificio_id, nombre_punto, ip, anexo, descripcion, usuario, clave, orden))
         puntos_insertados += 1
 
     conn.commit()
@@ -155,7 +169,7 @@ def main():
     print(f'  Edificios nuevos creados:      {edificios_nuevos}')
     print(f'  Edificios ya existentes:       {edificios_existentes}')
     print(f'  Puntos de red insertados:      {puntos_insertados}')
-    print(f'  Puntos omitidos (duplicados):  {puntos_duplicados}')
+    print(f'  Puntos actualizados:           {puntos_actualizados}')
     print(f'  Filas sin datos omitidas:      {filas_omitidas}')
     print(f'  TOTAL en base: {total_edificios} edificios, {total_puntos} puntos de red.')
     return 0

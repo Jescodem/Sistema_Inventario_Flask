@@ -7,6 +7,14 @@ El formato agrupa por **versiones técnicas** (v6, v7) y por **parches funcional
 
 ---
 
+## [Función] — Red de edificios: credenciales incluidas
+
+- Por decisión del administrador, la red de cada edificio ahora incluye el **usuario y la clave**
+  de cada equipo (columnas nuevas en `edificio_ips`), visibles al expandir, en el modal de
+  detalle, en el formulario de agregar y en la exportación **Excel red**.
+- El importador carga/actualiza las credenciales desde el Excel sin duplicar puntos
+  (868 puntos actualizados: 670 con usuario, 693 con clave).
+
 ## [Función] — Red de edificios: gestión y exportación
 
 - El **admin** puede **agregar y eliminar puntos de red** directamente desde el bloque expandible

@@ -2583,10 +2583,12 @@ def exportar(tipo):
 
         elif tipo == 'red_edificios':
             titulo = 'Red de edificios (IPs y anexos) — Portero Seguro'
-            encabezados = ['Edificio', 'Punto / equipo', 'IP', 'Anexo', 'Notas']
+            encabezados = ['Edificio', 'Punto / equipo', 'IP', 'Anexo',
+                           'Usuario', 'Clave', 'Notas']
             filas = conn.execute('''
                 SELECT e.nombre, ei.nombre, COALESCE(ei.ip, ''),
-                       COALESCE(ei.anexo, ''), COALESCE(ei.descripcion, '')
+                       COALESCE(ei.anexo, ''), COALESCE(ei.usuario, ''),
+                       COALESCE(ei.clave, ''), COALESCE(ei.descripcion, '')
                 FROM edificio_ips ei
                 JOIN edificios e ON e.id = ei.edificio_id
                 ORDER BY e.nombre, ei.orden, ei.id
@@ -3089,7 +3091,7 @@ def edificios():
     # bloque expandible. No se muestra a simple vista en el listado.
     ips_por_edificio = {}
     for fila in conn.execute('''
-        SELECT id, edificio_id, nombre, ip, anexo, descripcion
+        SELECT id, edificio_id, nombre, ip, anexo, descripcion, usuario, clave
         FROM edificio_ips
         ORDER BY edificio_id, orden, id
     ''').fetchall():
@@ -3182,6 +3184,8 @@ def agregar_ip_edificio(id):
         ip = clean_text(request.form.get('ip'))
         anexo = clean_text(request.form.get('anexo'))
         descripcion = clean_text(request.form.get('descripcion'))
+        usuario = clean_text(request.form.get('usuario'))
+        clave = request.form.get('clave') or ''
 
         if not nombre and not ip and not anexo:
             flash('Indica al menos el punto/equipo, la IP o el anexo.', 'danger')
@@ -3194,9 +3198,9 @@ def agregar_ip_edificio(id):
             (id,)
         ).fetchone()[0]
         conn.execute('''
-            INSERT INTO edificio_ips (edificio_id, nombre, ip, anexo, descripcion, orden)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (id, nombre, ip, anexo, descripcion, orden))
+            INSERT INTO edificio_ips (edificio_id, nombre, ip, anexo, descripcion, usuario, clave, orden)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (id, nombre, ip, anexo, descripcion, usuario, clave, orden))
         conn.commit()
         flash('Punto de red agregado al edificio.', 'success')
     except Exception as e:
