@@ -7,6 +7,21 @@ El formato agrupa por **versiones técnicas** (v6, v7) y por **parches funcional
 
 ---
 
+## [Mejoras] — Auditoría: seguridad, integridad y diseño
+
+Aplicadas tras una auditoría multi-agente del código (hallazgos de bajo riesgo):
+
+- **Seguridad:** cabeceras en todas las respuestas (`X-Content-Type-Options: nosniff`,
+  `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy`, y `Cache-Control: no-store` en páginas
+  con datos sensibles). Filtro `safe_url`: los enlaces de mapa solo se activan si son
+  `http(s)` (evita `javascript:`/`data:`) y llevan `rel="noopener"`.
+- **Integridad de datos:** renombrar un edificio ahora propaga el nuevo nombre también a
+  `seguimiento_equipos` (antes solo a guías, salidas, avances y seguimiento de herramientas).
+- **Diseño:** la pantalla de Edificios se alinea con el resto de la app (título `page-title`,
+  iconos Bootstrap en vez de emojis).
+- **Limpieza:** se elimina código muerto (`row_to_dict`) e import sin usar (`ROLE_LEVELS`).
+- Suite: **47 pruebas**.
+
 ## [Función] — Red de edificios: edición inline y copiar credenciales
 
 - El **admin** puede **editar** un punto de red (lápiz ✎ → modal): corregir IP, anexo, usuario,
