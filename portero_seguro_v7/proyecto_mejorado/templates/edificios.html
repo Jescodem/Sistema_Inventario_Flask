@@ -7,7 +7,12 @@
             <h2 class="fw-bold mb-1">🏢 Dashboard de Edificios / Obras</h2>
             <p class="text-muted mb-0">Consulta ubicaciones, enlaces de Maps y actividad asociada a cada edificio.</p>
         </div>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoEdificio">Nuevo edificio</button>
+        <div class="d-flex gap-2">
+            <a href="/exportar/red_edificios" class="btn btn-outline-secondary" title="Descargar todas las IPs y anexos en Excel">
+                <i class="bi bi-file-earmark-excel"></i> Excel red
+            </a>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoEdificio">Nuevo edificio</button>
+        </div>
     </div>
 
     <div class="row g-4 mb-4">
@@ -53,7 +58,7 @@
                             <span class="badge bg-light text-dark border">Seguimiento: {{ e.total_seguimiento or 0 }}</span>
                         </td>
                         <td>
-                            {% if nips %}
+                            {% if nips or rol_actual == 'admin' %}
                             <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#ips{{ e.id }}" title="Ver IPs y anexos del edificio">
                                 <i class="bi bi-hdd-network"></i> IPs ({{ nips|length }})
                             </button>
@@ -77,10 +82,11 @@
                                     <table class="table table-sm mb-0" style="font-size:.82rem;">
                                         <thead>
                                             <tr class="text-muted">
-                                                <th style="width:28%;">Punto / equipo</th>
-                                                <th style="width:22%;">IP</th>
-                                                <th style="width:18%;">Anexo</th>
+                                                <th style="width:26%;">Punto / equipo</th>
+                                                <th style="width:20%;">IP</th>
+                                                <th style="width:16%;">Anexo</th>
                                                 <th>Notas</th>
+                                                {% if rol_actual == 'admin' %}<th style="width:60px;"></th>{% endif %}
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -90,10 +96,29 @@
                                                 <td style="font-family:var(--mono, monospace);">{{ i.ip or '—' }}</td>
                                                 <td style="font-family:var(--mono, monospace);">{{ i.anexo or '—' }}</td>
                                                 <td class="text-muted">{{ i.descripcion or '' }}</td>
+                                                {% if rol_actual == 'admin' %}
+                                                <td class="text-end">
+                                                    <form action="/edificios/ips/{{ i.id }}/eliminar" method="POST" style="display:inline;"
+                                                          onsubmit="return confirm('¿Eliminar {{ i.nombre }} de {{ e.nombre }}?')">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Eliminar punto de red">✕</button>
+                                                    </form>
+                                                </td>
+                                                {% endif %}
                                             </tr>
                                             {% endfor %}
                                         </tbody>
                                     </table>
+                                    {% else %}
+                                    <div class="text-muted" style="font-size:.82rem;">Este edificio aún no tiene puntos de red registrados.</div>
+                                    {% endif %}
+                                    {% if rol_actual == 'admin' %}
+                                    <form action="/edificios/{{ e.id }}/ips/agregar" method="POST" class="row g-2 mt-2 align-items-end">
+                                        <div class="col-md-3"><input name="nombre" class="form-control form-control-sm" placeholder="Punto / equipo (ej. Lobby)"></div>
+                                        <div class="col-md-3"><input name="ip" class="form-control form-control-sm" placeholder="IP (ej. 192.168.10.101)"></div>
+                                        <div class="col-md-2"><input name="anexo" class="form-control form-control-sm" placeholder="Anexo"></div>
+                                        <div class="col-md-3"><input name="descripcion" class="form-control form-control-sm" placeholder="Notas"></div>
+                                        <div class="col-md-1"><button type="submit" class="btn btn-sm btn-primary w-100" title="Agregar punto de red">+</button></div>
+                                    </form>
                                     {% endif %}
                                 </div>
                             </div>

@@ -169,6 +169,8 @@ ROUTE_ACCESS = {
     'edificios': {'GET': 'lectura', 'POST': 'admin'},
     'editar_edificio': 'admin',
     'eliminar_edificio': 'admin',
+    'agregar_ip_edificio': 'admin',
+    'eliminar_ip_edificio': 'admin',
     'editar_equipo': 'operador',
     'dar_baja_equipo': 'operador',
     'seguimiento': {'GET': 'lectura', 'POST': 'operador'},
@@ -2579,6 +2581,17 @@ def exportar(tipo):
                 ''').fetchall()
             ]
 
+        elif tipo == 'red_edificios':
+            titulo = 'Red de edificios (IPs y anexos) — Portero Seguro'
+            encabezados = ['Edificio', 'Punto / equipo', 'IP', 'Anexo', 'Notas']
+            filas = conn.execute('''
+                SELECT e.nombre, ei.nombre, COALESCE(ei.ip, ''),
+                       COALESCE(ei.anexo, ''), COALESCE(ei.descripcion, '')
+                FROM edificio_ips ei
+                JOIN edificios e ON e.id = ei.edificio_id
+                ORDER BY e.nombre, ei.orden, ei.id
+            ''').fetchall()
+
         else:
             abort(404)
 
@@ -3146,9 +3159,64 @@ def eliminar_edificio(id):
         if usado > 0:
             flash('No se puede eliminar un edificio usado en guias, salidas, avances o seguimiento.', 'warning')
         else:
+            # La red del edificio (IPs/anexos) le pertenece: se elimina junto
+            # con el. Sin esto, la clave foranea bloquea el borrado.
+            conn.execute('DELETE FROM edificio_ips WHERE edificio_id = ?', (id,))
             conn.execute('DELETE FROM edificios WHERE id = ?', (id,))
             conn.commit()
             flash('Edificio eliminado correctamente.', 'success')
+    conn.close()
+    return redirect(url_for('edificios'))
+
+
+@app.route('/edificios/<int:id>/ips/agregar', methods=['POST'])
+def agregar_ip_edificio(id):
+    """Agrega un punto de red (IP/anexo) a un edificio desde la vista."""
+    conn = get_db_connection()
+    try:
+        if not conn.execute('SELECT 1 FROM edificios WHERE id = ?', (id,)).fetchone():
+            flash('El edificio no existe.', 'danger')
+            return redirect(url_for('edificios'))
+
+        nombre = clean_text(request.form.get('nombre'))
+        ip = clean_text(request.form.get('ip'))
+        anexo = clean_text(request.form.get('anexo'))
+        descripcion = clean_text(request.form.get('descripcion'))
+
+        if not nombre and not ip and not anexo:
+            flash('Indica al menos el punto/equipo, la IP o el anexo.', 'danger')
+            return redirect(url_for('edificios'))
+        if not nombre:
+            nombre = descripcion or 'Equipo'
+
+        orden = conn.execute(
+            'SELECT COALESCE(MAX(orden), 0) + 1 FROM edificio_ips WHERE edificio_id = ?',
+            (id,)
+        ).fetchone()[0]
+        conn.execute('''
+            INSERT INTO edificio_ips (edificio_id, nombre, ip, anexo, descripcion, orden)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (id, nombre, ip, anexo, descripcion, orden))
+        conn.commit()
+        flash('Punto de red agregado al edificio.', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error agregando el punto de red: {e}', 'danger')
+    finally:
+        conn.close()
+    return redirect(url_for('edificios'))
+
+
+@app.route('/edificios/ips/<int:ip_id>/eliminar', methods=['POST'])
+def eliminar_ip_edificio(ip_id):
+    """Elimina un punto de red concreto de un edificio."""
+    conn = get_db_connection()
+    if conn.execute('SELECT 1 FROM edificio_ips WHERE id = ?', (ip_id,)).fetchone():
+        conn.execute('DELETE FROM edificio_ips WHERE id = ?', (ip_id,))
+        conn.commit()
+        flash('Punto de red eliminado.', 'success')
+    else:
+        flash('El punto de red no existe.', 'warning')
     conn.close()
     return redirect(url_for('edificios'))
 

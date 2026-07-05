@@ -477,6 +477,52 @@ class TestRedEdificios(OpsBase):
         self.assertNotIn(f'data-bs-target="#ips{eid}"', html,
                          'Sin puntos de red no debe haber boton de expandir')
 
+    def test_admin_agrega_y_elimina_punto(self):
+        conn = get_db_connection()
+        conn.execute("INSERT OR IGNORE INTO edificios (nombre) VALUES ('EDIF_CRUD_RED')")
+        eid = conn.execute("SELECT id FROM edificios WHERE nombre='EDIF_CRUD_RED'").fetchone()[0]
+        conn.commit(); conn.close()
+        self.login('adm_test')
+        self.client.post(f'/edificios/{eid}/ips/agregar', data={
+            'nombre': 'Lobby Nuevo', 'ip': '192.0.2.200', 'anexo': '5555',
+            'descripcion': 'prueba', 'csrf_token': self.csrf(),
+        }, follow_redirects=False)
+        fila = self._scalar(
+            "SELECT id FROM edificio_ips WHERE edificio_id=? AND ip='192.0.2.200'", (eid,))
+        self.assertIsNotNone(fila, 'El admin debe poder agregar un punto de red')
+        self.client.post(f'/edificios/ips/{fila}/eliminar',
+                         data={'csrf_token': self.csrf()}, follow_redirects=False)
+        self.assertIsNone(self._scalar("SELECT id FROM edificio_ips WHERE id=?", (fila,)),
+                          'El admin debe poder eliminar un punto de red')
+
+    def test_lectura_no_puede_agregar_punto(self):
+        eid = self._edificio_con_ips('EDIF_RED_PERM')
+        self.login('lec_test')
+        self.client.post(f'/edificios/{eid}/ips/agregar', data={
+            'nombre': 'Intruso', 'ip': '192.0.2.66', 'csrf_token': self.csrf(),
+        }, follow_redirects=False)
+        self.assertIsNone(
+            self._scalar("SELECT id FROM edificio_ips WHERE ip='192.0.2.66'"),
+            'El rol lectura no debe poder agregar puntos de red')
+
+    def test_export_red_edificios_devuelve_xlsx(self):
+        self.login('lec_test')
+        r = self.client.get('/exportar/red_edificios')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data[:2], b'PK', 'Debe ser un .xlsx valido')
+
+    def test_eliminar_edificio_con_red_no_falla(self):
+        eid = self._edificio_con_ips('EDIF_RED_BORRAR')
+        self.login('adm_test')
+        r = self.client.post(f'/edificios/eliminar/{eid}',
+                             data={'csrf_token': self.csrf()}, follow_redirects=False)
+        self.assertEqual(r.status_code, 302)
+        self.assertIsNone(self._scalar("SELECT id FROM edificios WHERE id=?", (eid,)),
+                          'El edificio debe eliminarse aunque tenga red registrada')
+        self.assertIsNone(self._scalar(
+            "SELECT id FROM edificio_ips WHERE edificio_id=?", (eid,)),
+            'Su red debe eliminarse junto con el edificio')
+
     def test_importador_normaliza_ips(self):
         from importar_ips_edificios import normalizar_ip, celda
         self.assertEqual(normalizar_ip(192168100101.0), '192.168.100.101')

@@ -7,6 +7,17 @@ El formato agrupa por **versiones técnicas** (v6, v7) y por **parches funcional
 
 ---
 
+## [Función] — Red de edificios: gestión y exportación
+
+- El **admin** puede **agregar y eliminar puntos de red** directamente desde el bloque expandible
+  de cada edificio (sin depender del Excel).
+- Nueva exportación **Excel red** (`/exportar/red_edificios`): todas las IPs/anexos por edificio,
+  con botón en la vista de Edificios.
+- **Fix:** eliminar un edificio con red registrada fallaba por la clave foránea; ahora su red se
+  elimina junto con él (solo si el edificio no tiene actividad, como siempre).
+- Documentación técnica y manual actualizados (19 tablas, nueva exportación).
+- +4 pruebas (41 en total).
+
 ## [Función] — Red de edificios (IPs y anexos)
 
 - Nueva tabla `edificio_ips`: puntos de red de cada edificio (intercom, lobby, altavoz, DVR,
