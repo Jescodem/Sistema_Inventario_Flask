@@ -95,7 +95,10 @@
                                             {% for i in nips %}
                                             <tr>
                                                 <td>{{ i.nombre }}</td>
-                                                <td style="font-family:var(--mono, monospace);">{{ i.ip or '—' }}</td>
+                                                <td style="font-family:var(--mono, monospace);">
+                                                    {% set _u = i.ip|ip_url %}
+                                                    {% if _u %}<a href="{{ _u }}" target="_blank" rel="noopener" title="Abrir {{ i.ip }} en una pestaña nueva">{{ i.ip }} <i class="bi bi-box-arrow-up-right" style="font-size:.7rem;"></i></a>{% else %}{{ i.ip or '—' }}{% endif %}
+                                                </td>
                                                 <td style="font-family:var(--mono, monospace);">{{ i.anexo or '—' }}</td>
                                                 <td style="font-family:var(--mono, monospace);">{{ i.usuario or '—' }}</td>
                                                 <td style="font-family:var(--mono, monospace);">{{ i.clave or '—' }}</td>
@@ -161,7 +164,10 @@
                         {% for i in nips_modal %}
                         <tr>
                             <td>{{ i.nombre }}</td>
-                            <td style="font-family:monospace;">{{ i.ip or '—' }}</td>
+                            <td style="font-family:monospace;">
+                                {% set _um = i.ip|ip_url %}
+                                {% if _um %}<a href="{{ _um }}" target="_blank" rel="noopener" title="Abrir {{ i.ip }}">{{ i.ip }} <i class="bi bi-box-arrow-up-right" style="font-size:.7rem;"></i></a>{% else %}{{ i.ip or '—' }}{% endif %}
+                            </td>
                             <td style="font-family:monospace;">{{ i.anexo or '—' }}</td>
                             <td style="font-family:monospace;">{{ i.usuario or '—' }}</td>
                             <td style="font-family:monospace;">{{ i.clave or '—' }}</td>

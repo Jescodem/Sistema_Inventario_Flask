@@ -529,6 +529,20 @@ class TestRedEdificios(OpsBase):
             "SELECT id FROM edificio_ips WHERE edificio_id=?", (eid,)),
             'Su red debe eliminarse junto con el edificio')
 
+    def test_ip_se_muestra_como_enlace(self):
+        # El filtro solo convierte IPs validas en enlace
+        self.assertEqual(app_module.ip_url('192.168.14.101'), 'http://192.168.14.101')
+        self.assertIsNone(app_module.ip_url('HikCentral'))
+        self.assertIsNone(app_module.ip_url('EC:97:E0:F8:6C:6B'))
+        self.assertIsNone(app_module.ip_url('999.1.1.1'))
+        self.assertIsNone(app_module.ip_url(''))
+        # Y en la vista, la IP valida sale como <a href="http://...">
+        eid = self._edificio_con_ips('EDIF_LINK_TEST')
+        self.login('lec_test')
+        html = self.client.get('/edificios').get_data(as_text=True)
+        self.assertIn('href="http://192.0.2.101"', html,
+                      'La IP debe renderizarse como enlace clicable')
+
     def test_importador_normaliza_ips(self):
         from importar_ips_edificios import normalizar_ip, celda
         self.assertEqual(normalizar_ip(192168100101.0), '192.168.100.101')

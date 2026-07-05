@@ -234,6 +234,22 @@ def inject_seguridad():
         rol_actual=session.get('rol'),
     )
 
+
+_RE_IPV4 = re.compile(r'^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$')
+
+
+@app.template_filter('ip_url')
+def ip_url(valor):
+    """Si el valor es una IPv4 valida devuelve 'http://IP' (para abrir la
+    interfaz web del equipo); si no (HikCentral, MAC, texto...), None y se
+    muestra como texto plano."""
+    s = (valor or '').strip()
+    m = _RE_IPV4.match(s)
+    if not m or any(int(o) > 255 for o in m.groups()):
+        return None
+    return f'http://{s}'
+
+
 ESTADOS_EQUIPO = ['En Stock', 'Sin Stock', 'En Revision', 'En Transito', 'Instalado', 'Baja']
 ESTADOS_COMPATIBLES = {
     'En Revisión': 'En Revision',
