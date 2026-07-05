@@ -170,6 +170,7 @@ ROUTE_ACCESS = {
     'editar_edificio': 'admin',
     'eliminar_edificio': 'admin',
     'agregar_ip_edificio': 'admin',
+    'editar_ip_edificio': 'admin',
     'eliminar_ip_edificio': 'admin',
     'editar_equipo': 'operador',
     'dar_baja_equipo': 'operador',
@@ -3222,6 +3223,43 @@ def agregar_ip_edificio(id):
     except Exception as e:
         conn.rollback()
         flash(f'Error agregando el punto de red: {e}', 'danger')
+    finally:
+        conn.close()
+    return redirect(url_for('edificios'))
+
+
+@app.route('/edificios/ips/<int:ip_id>/editar', methods=['POST'])
+def editar_ip_edificio(ip_id):
+    """Actualiza los datos de un punto de red (IP, anexo, usuario, clave...)."""
+    conn = get_db_connection()
+    try:
+        if not conn.execute('SELECT 1 FROM edificio_ips WHERE id = ?', (ip_id,)).fetchone():
+            flash('El punto de red no existe.', 'warning')
+            return redirect(url_for('edificios'))
+
+        nombre = clean_text(request.form.get('nombre'))
+        ip = clean_text(request.form.get('ip'))
+        anexo = clean_text(request.form.get('anexo'))
+        descripcion = clean_text(request.form.get('descripcion'))
+        usuario = clean_text(request.form.get('usuario'))
+        clave = request.form.get('clave') or ''
+
+        if not nombre and not ip and not anexo:
+            flash('Indica al menos el punto/equipo, la IP o el anexo.', 'danger')
+            return redirect(url_for('edificios'))
+        if not nombre:
+            nombre = descripcion or 'Equipo'
+
+        conn.execute('''
+            UPDATE edificio_ips
+            SET nombre = ?, ip = ?, anexo = ?, descripcion = ?, usuario = ?, clave = ?
+            WHERE id = ?
+        ''', (nombre, ip, anexo, descripcion, usuario, clave, ip_id))
+        conn.commit()
+        flash('Punto de red actualizado.', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error actualizando el punto de red: {e}', 'danger')
     finally:
         conn.close()
     return redirect(url_for('edificios'))

@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Edificios / Obras | Portero Seguro{% endblock %}
 {% block content %}
+<style>
+    .copiable{ cursor:pointer; border-bottom:1px dashed var(--c-border2, #bbb); }
+    .copiable:hover{ background:#fff3cd; }
+    .copiable.copiado{ color:var(--c-success, #2E7D32); font-weight:600; border-bottom-color:transparent; }
+</style>
 <div class="py-3">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -100,11 +105,15 @@
                                                     {% if _u %}<a href="{{ _u }}" target="_blank" rel="noopener" title="Abrir {{ i.ip }} en una pestaña nueva">{{ i.ip }} <i class="bi bi-box-arrow-up-right" style="font-size:.7rem;"></i></a>{% else %}{{ i.ip or '—' }}{% endif %}
                                                 </td>
                                                 <td style="font-family:var(--mono, monospace);">{{ i.anexo or '—' }}</td>
-                                                <td style="font-family:var(--mono, monospace);">{{ i.usuario or '—' }}</td>
-                                                <td style="font-family:var(--mono, monospace);">{{ i.clave or '—' }}</td>
+                                                <td style="font-family:var(--mono, monospace);">{% if i.usuario %}<span class="copiable" data-copiar="{{ i.usuario }}" title="Clic para copiar">{{ i.usuario }}</span>{% else %}—{% endif %}</td>
+                                                <td style="font-family:var(--mono, monospace);">{% if i.clave %}<span class="copiable" data-copiar="{{ i.clave }}" title="Clic para copiar">{{ i.clave }}</span>{% else %}—{% endif %}</td>
                                                 <td class="text-muted">{{ i.descripcion or '' }}</td>
                                                 {% if rol_actual == 'admin' %}
-                                                <td class="text-end">
+                                                <td class="text-end text-nowrap">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 btn-editar-ip" title="Editar punto de red"
+                                                            data-id="{{ i.id }}" data-nombre="{{ i.nombre }}" data-ip="{{ i.ip or '' }}"
+                                                            data-anexo="{{ i.anexo or '' }}" data-usuario="{{ i.usuario or '' }}"
+                                                            data-clave="{{ i.clave or '' }}" data-desc="{{ i.descripcion or '' }}">✎</button>
                                                     <form action="/edificios/ips/{{ i.id }}/eliminar" method="POST" style="display:inline;"
                                                           onsubmit="return confirm('¿Eliminar {{ i.nombre }} de {{ e.nombre }}?')">
                                                         <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Eliminar punto de red">✕</button>
@@ -198,6 +207,27 @@
 </div>
 {% endfor %}
 
+{% if rol_actual == 'admin' %}
+{# Modal unico para editar un punto de red; se rellena por JS al pulsar el lapiz. #}
+<div class="modal fade" id="modalEditarIp" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow">
+        <form id="formEditarIp" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="modal-header bg-primary text-white"><h5 class="modal-title">Editar punto de red</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body row g-3">
+                <div class="col-md-6"><label class="form-label fw-semibold">Punto / equipo</label><input name="nombre" id="edipNombre" class="form-control"></div>
+                <div class="col-md-6"><label class="form-label fw-semibold">IP</label><input name="ip" id="edipIp" class="form-control" placeholder="192.168.10.101"></div>
+                <div class="col-md-4"><label class="form-label fw-semibold">Anexo</label><input name="anexo" id="edipAnexo" class="form-control"></div>
+                <div class="col-md-4"><label class="form-label fw-semibold">Usuario</label><input name="usuario" id="edipUsuario" class="form-control"></div>
+                <div class="col-md-4"><label class="form-label fw-semibold">Clave</label><input name="clave" id="edipClave" class="form-control"></div>
+                <div class="col-12"><label class="form-label fw-semibold">Notas</label><input name="descripcion" id="edipDesc" class="form-control"></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary">Guardar cambios</button></div>
+        </form>
+    </div></div>
+</div>
+{% endif %}
+
 <div class="modal fade" id="modalNuevoEdificio" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content border-0 shadow">
         <form action="/edificios" method="POST">
@@ -233,6 +263,50 @@
             if(ok){ visibles++; }
         });
         if(contador){ contador.textContent = visibles; }
+    });
+})();
+
+// Rellenar el modal de edición de punto de red al pulsar el lápiz.
+(function(){
+    const modalEl = document.getElementById('modalEditarIp');
+    if(!modalEl || !window.bootstrap){ return; }
+    const modal = new bootstrap.Modal(modalEl);
+    const form = document.getElementById('formEditarIp');
+    document.querySelectorAll('.btn-editar-ip').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            const d = btn.dataset;
+            form.action = '/edificios/ips/' + d.id + '/editar';
+            document.getElementById('edipNombre').value = d.nombre || '';
+            document.getElementById('edipIp').value = d.ip || '';
+            document.getElementById('edipAnexo').value = d.anexo || '';
+            document.getElementById('edipUsuario').value = d.usuario || '';
+            document.getElementById('edipClave').value = d.clave || '';
+            document.getElementById('edipDesc').value = d.desc || '';
+            modal.show();
+        });
+    });
+})();
+
+// Clic para copiar usuario/clave al portapapeles.
+(function(){
+    function aviso(el){
+        const antes = el.textContent;
+        el.textContent = '¡copiado!';
+        el.classList.add('copiado');
+        setTimeout(function(){ el.textContent = antes; el.classList.remove('copiado'); }, 900);
+    }
+    document.addEventListener('click', function(ev){
+        const el = ev.target.closest('.copiable');
+        if(!el){ return; }
+        const txt = el.dataset.copiar || el.textContent;
+        if(navigator.clipboard && navigator.clipboard.writeText){
+            navigator.clipboard.writeText(txt).then(function(){ aviso(el); }).catch(function(){});
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = txt; document.body.appendChild(ta); ta.select();
+            try { document.execCommand('copy'); aviso(el); } catch(e){}
+            document.body.removeChild(ta);
+        }
     });
 })();
 </script>

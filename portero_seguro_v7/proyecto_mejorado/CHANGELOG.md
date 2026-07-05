@@ -7,6 +7,15 @@ El formato agrupa por **versiones técnicas** (v6, v7) y por **parches funcional
 
 ---
 
+## [Función] — Red de edificios: edición inline y copiar credenciales
+
+- El **admin** puede **editar** un punto de red (lápiz ✎ → modal): corregir IP, anexo, usuario,
+  clave o notas sin borrar y recrear. Completa el CRUD (agregar / editar / eliminar).
+- **Clic para copiar**: al pulsar un usuario o clave se copia al portapapeles (con aviso
+  "¡copiado!"), práctico para pegarlo en el equipo.
+- La **IP** sigue siendo un enlace clicable (`http://IP`) que abre la interfaz del equipo.
+- +2 pruebas (44 en total).
+
 ## [Función] — Red de edificios: credenciales incluidas
 
 - Por decisión del administrador, la red de cada edificio ahora incluye el **usuario y la clave**

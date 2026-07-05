@@ -501,6 +501,39 @@ class TestRedEdificios(OpsBase):
         self.assertIsNone(self._scalar("SELECT id FROM edificio_ips WHERE id=?", (fila,)),
                           'El admin debe poder eliminar un punto de red')
 
+    def test_admin_edita_punto(self):
+        eid = self._edificio_con_ips('EDIF_EDIT_RED')
+        pid = self._scalar(
+            "SELECT id FROM edificio_ips WHERE edificio_id=? ORDER BY orden LIMIT 1", (eid,))
+        self.login('adm_test')
+        # La vista debe traer el boton de editar con los datos del punto
+        html = self.client.get('/edificios').get_data(as_text=True)
+        self.assertIn('btn-editar-ip', html)
+        self.assertIn(f'data-id="{pid}"', html)
+        # Editar: cambia IP, usuario y clave
+        self.client.post(f'/edificios/ips/{pid}/editar', data={
+            'nombre': 'Puerta Editada', 'ip': '192.0.2.150', 'anexo': '9999',
+            'usuario': 'root', 'clave': 'NuevaClave1', 'descripcion': 'editado',
+            'csrf_token': self.csrf(),
+        }, follow_redirects=False)
+        fila = get_db_connection().execute(
+            'SELECT nombre, ip, usuario, clave FROM edificio_ips WHERE id=?', (pid,)).fetchone()
+        self.assertEqual(fila['ip'], '192.0.2.150')
+        self.assertEqual(fila['usuario'], 'root')
+        self.assertEqual(fila['clave'], 'NuevaClave1')
+        self.assertEqual(fila['nombre'], 'Puerta Editada')
+
+    def test_lectura_no_puede_editar_punto(self):
+        eid = self._edificio_con_ips('EDIF_EDIT_PERM')
+        pid = self._scalar(
+            "SELECT id FROM edificio_ips WHERE edificio_id=? ORDER BY orden LIMIT 1", (eid,))
+        self.login('lec_test')
+        self.client.post(f'/edificios/ips/{pid}/editar', data={
+            'nombre': 'x', 'ip': '10.9.9.9', 'csrf_token': self.csrf(),
+        }, follow_redirects=False)
+        ip = self._scalar("SELECT ip FROM edificio_ips WHERE id=?", (pid,))
+        self.assertNotEqual(ip, '10.9.9.9', 'El rol lectura no debe poder editar')
+
     def test_lectura_no_puede_agregar_punto(self):
         eid = self._edificio_con_ips('EDIF_RED_PERM')
         self.login('lec_test')
