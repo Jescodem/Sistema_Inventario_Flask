@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 
 from auth import (
-    ROLE_LEVELS, ROLES_VALIDOS, hash_password, check_password,
+    ROLES_VALIDOS, hash_password, check_password,
     generar_password_temporal, nuevo_csrf_token, rol_alcanza,
 )
 
@@ -124,6 +124,19 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(
 if os.environ.get('BEHIND_PROXY', 'false').lower() == 'true':
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+
+@app.after_request
+def cabeceras_seguridad(resp):
+    """Cabeceras de seguridad basicas en todas las respuestas."""
+    resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    resp.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    resp.headers.setdefault('Referrer-Policy', 'same-origin')
+    # La app muestra credenciales de equipos: evita que las paginas queden
+    # cacheadas (los archivos estaticos si pueden cachearse).
+    if request.endpoint != 'static':
+        resp.headers.setdefault('Cache-Control', 'no-store')
+    return resp
 
 # Mapa de control de acceso por endpoint (nombre de la funcion de la ruta).
 # Valor string => mismo rol minimo para cualquier metodo HTTP.
@@ -251,6 +264,15 @@ def ip_url(valor):
     return f'http://{s}'
 
 
+@app.template_filter('safe_url')
+def safe_url(valor):
+    """Devuelve la URL solo si empieza por http:// o https:// (evita esquemas
+    peligrosos como javascript: o data: en enlaces como mapa_url). Si no es
+    una URL http(s) valida devuelve cadena vacia."""
+    s = (valor or '').strip()
+    return s if s.lower().startswith(('http://', 'https://')) else ''
+
+
 ESTADOS_EQUIPO = ['En Stock', 'Sin Stock', 'En Revision', 'En Transito', 'Instalado', 'Baja']
 ESTADOS_COMPATIBLES = {
     'En Revisión': 'En Revision',
@@ -354,12 +376,6 @@ def validar_mac(mac):
 
 def catalog_exists(conn, table, nombre):
     return conn.execute(f'SELECT 1 FROM {table} WHERE nombre = ?', (nombre,)).fetchone() is not None
-
-
-def row_to_dict(row):
-    return dict(row) if row else None
-
-
 
 
 
@@ -3150,6 +3166,7 @@ def editar_edificio(id):
                     conn.execute('UPDATE guias_salida SET destino = ? WHERE destino = ?', (nombre, nombre_anterior))
                     conn.execute('UPDATE avances_actividades SET edificio = ? WHERE edificio = ?', (nombre, nombre_anterior))
                     conn.execute('UPDATE seguimiento_herramientas SET edificio = ? WHERE edificio = ?', (nombre, nombre_anterior))
+                    conn.execute('UPDATE seguimiento_equipos SET edificio = ? WHERE edificio = ?', (nombre, nombre_anterior))
                 conn.commit()
                 flash('Edificio actualizado correctamente.', 'success')
     except sqlite3.IntegrityError:

@@ -588,5 +588,38 @@ class TestRedEdificios(OpsBase):
         self.assertEqual(celda(' HIK CENTRAL '), 'HIK CENTRAL')
 
 
+class TestMejoras(OpsBase):
+
+    def test_cabeceras_de_seguridad(self):
+        self.login('adm_test')
+        r = self.client.get('/edificios')
+        self.assertEqual(r.headers.get('X-Content-Type-Options'), 'nosniff')
+        self.assertEqual(r.headers.get('X-Frame-Options'), 'SAMEORIGIN')
+        self.assertIn('no-store', r.headers.get('Cache-Control', ''))
+
+    def test_safe_url_filtra_esquemas_peligrosos(self):
+        self.assertEqual(app_module.safe_url('http://maps.google.com/x'), 'http://maps.google.com/x')
+        self.assertEqual(app_module.safe_url('https://x.com'), 'https://x.com')
+        self.assertEqual(app_module.safe_url('javascript:alert(1)'), '')
+        self.assertEqual(app_module.safe_url('data:text/html,x'), '')
+        self.assertEqual(app_module.safe_url('-12.04,-77.04'), '')
+        self.assertEqual(app_module.safe_url(''), '')
+
+    def test_renombrar_edificio_propaga_a_seguimiento_equipos(self):
+        conn = get_db_connection()
+        conn.execute("INSERT OR IGNORE INTO edificios (nombre) VALUES ('EDIF_VIEJO_NOM')")
+        eid = conn.execute("SELECT id FROM edificios WHERE nombre='EDIF_VIEJO_NOM'").fetchone()[0]
+        conn.execute("""INSERT INTO seguimiento_equipos (nombre_equipo, edificio, fecha_dejado, dejado_por)
+                        VALUES ('Modem', 'EDIF_VIEJO_NOM', '2026-01-01', 'Tester')""")
+        conn.commit(); conn.close()
+        self.login('adm_test')
+        self.client.post(f'/edificios/editar/{eid}', data={
+            'nombre': 'EDIF_NUEVO_NOM', 'ubicacion': '', 'mapa_url': '',
+            'observaciones': '', 'csrf_token': self.csrf(),
+        }, follow_redirects=False)
+        n = self._scalar("SELECT COUNT(*) FROM seguimiento_equipos WHERE edificio='EDIF_NUEVO_NOM'")
+        self.assertEqual(n, 1, 'El rename debe propagarse a seguimiento_equipos')
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
