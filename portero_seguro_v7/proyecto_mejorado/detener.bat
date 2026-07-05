@@ -6,6 +6,15 @@
 :: =====================================================================
 title Portero Seguro - Detener servidor
 
+:: El servidor se inicia con permisos de administrador, asi que para poder
+:: detenerlo tambien hacen falta. Nos auto-elevamos.
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo  Solicitando permisos de administrador...
+    powershell -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+    exit /b
+)
+
 echo.
 echo  Deteniendo el proxy Caddy...
 taskkill /f /im caddy.exe >nul 2>&1 && echo   [OK] Caddy detenido. || echo   [i]  Caddy no estaba corriendo.
