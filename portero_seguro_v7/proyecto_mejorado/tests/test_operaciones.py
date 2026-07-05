@@ -490,6 +490,12 @@ class TestRedEdificios(OpsBase):
         fila = self._scalar(
             "SELECT id FROM edificio_ips WHERE edificio_id=? AND ip='192.0.2.200'", (eid,))
         self.assertIsNotNone(fila, 'El admin debe poder agregar un punto de red')
+        # La vista debe renderizar el boton de eliminar con el id REAL del
+        # punto (regresion: la consulta no seleccionaba el id y el form
+        # quedaba /edificios/ips//eliminar).
+        html = self.client.get('/edificios').get_data(as_text=True)
+        self.assertIn(f'/edificios/ips/{fila}/eliminar', html,
+                      'El boton eliminar debe llevar el id del punto de red')
         self.client.post(f'/edificios/ips/{fila}/eliminar',
                          data={'csrf_token': self.csrf()}, follow_redirects=False)
         self.assertIsNone(self._scalar("SELECT id FROM edificio_ips WHERE id=?", (fila,)),

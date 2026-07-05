@@ -3089,7 +3089,7 @@ def edificios():
     # bloque expandible. No se muestra a simple vista en el listado.
     ips_por_edificio = {}
     for fila in conn.execute('''
-        SELECT edificio_id, nombre, ip, anexo, descripcion
+        SELECT id, edificio_id, nombre, ip, anexo, descripcion
         FROM edificio_ips
         ORDER BY edificio_id, orden, id
     ''').fetchall():
