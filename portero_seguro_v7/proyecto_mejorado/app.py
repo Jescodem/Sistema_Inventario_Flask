@@ -3071,12 +3071,24 @@ def edificios():
     """).fetchall()
     total_edificios = len(lista)
     con_mapa = sum(1 for e in lista if clean_text(e['mapa_url'] if 'mapa_url' in e.keys() else ''))
+
+    # Red del edificio (IPs/anexos): se pasa agrupada por edificio para el
+    # bloque expandible. No se muestra a simple vista en el listado.
+    ips_por_edificio = {}
+    for fila in conn.execute('''
+        SELECT edificio_id, nombre, ip, anexo, descripcion
+        FROM edificio_ips
+        ORDER BY edificio_id, orden, id
+    ''').fetchall():
+        ips_por_edificio.setdefault(fila['edificio_id'], []).append(fila)
+
     conn.close()
     return render_template(
         'edificios.html',
         edificios=lista,
         total_edificios=total_edificios,
-        con_mapa=con_mapa
+        con_mapa=con_mapa,
+        ips_por_edificio=ips_por_edificio
     )
 
 

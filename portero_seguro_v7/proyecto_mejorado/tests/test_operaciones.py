@@ -434,5 +434,60 @@ class TestGestionUsuarios(OpsBase):
                       'Con contrasena temporal debe ir a Mi cuenta, no a /usuarios')
 
 
+class TestRedEdificios(OpsBase):
+    """La red (IPs/anexos) de cada edificio se ve al expandir, no a simple vista."""
+
+    def _edificio_con_ips(self, nombre='EDIF_RED_TEST'):
+        conn = get_db_connection()
+        conn.execute('INSERT OR IGNORE INTO edificios (nombre) VALUES (?)', (nombre,))
+        eid = conn.execute('SELECT id FROM edificios WHERE nombre = ?', (nombre,)).fetchone()[0]
+        conn.execute('DELETE FROM edificio_ips WHERE edificio_id = ?', (eid,))
+        conn.executemany('''
+            INSERT INTO edificio_ips (edificio_id, nombre, ip, anexo, descripcion, orden)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', [
+            (eid, 'Puerta Calle', '192.0.2.101', '9901', 'Telefono Calle', 1),
+            (eid, 'Mikrotik', '192.0.2.1', '', 'MikroTik', 2),
+        ])
+        conn.commit()
+        conn.close()
+        return eid
+
+    def test_ips_aparecen_dentro_de_bloque_colapsado(self):
+        eid = self._edificio_con_ips()
+        self.login('lec_test')
+        html = self.client.get('/edificios').get_data(as_text=True)
+        self.assertIn('192.0.2.101', html, 'La IP debe estar en la pagina (bloque expandible)')
+        # El bloque que contiene las IPs es un collapse (oculto por defecto)
+        self.assertIn(f'id="ips{eid}"', html)
+        pos_div = html.find(f'id="ips{eid}"')
+        contexto = html[max(0, pos_div - 200):pos_div]
+        self.assertIn('class="collapse"', contexto,
+                      'Las IPs deben vivir dentro de un bloque collapse (no a simple vista)')
+        # Boton de expandir con el contador
+        self.assertIn(f'data-bs-target="#ips{eid}"', html)
+
+    def test_edificio_sin_ips_no_muestra_boton(self):
+        conn = get_db_connection()
+        conn.execute("INSERT OR IGNORE INTO edificios (nombre) VALUES ('EDIF_SIN_RED')")
+        eid = conn.execute("SELECT id FROM edificios WHERE nombre='EDIF_SIN_RED'").fetchone()[0]
+        conn.commit(); conn.close()
+        self.login('lec_test')
+        html = self.client.get('/edificios').get_data(as_text=True)
+        self.assertNotIn(f'data-bs-target="#ips{eid}"', html,
+                         'Sin puntos de red no debe haber boton de expandir')
+
+    def test_importador_normaliza_ips(self):
+        from importar_ips_edificios import normalizar_ip, celda
+        self.assertEqual(normalizar_ip(192168100101.0), '192.168.100.101')
+        self.assertEqual(normalizar_ip('192168142100'), '192.168.142.100')
+        self.assertEqual(normalizar_ip('192168.172.1'), '192.168.172.1')
+        self.assertEqual(normalizar_ip('192.168.14.101'), '192.168.14.101')
+        self.assertEqual(normalizar_ip(','), '')
+        self.assertEqual(normalizar_ip(None), '')
+        self.assertEqual(celda(103.0), '103')
+        self.assertEqual(celda(' HIK CENTRAL '), 'HIK CENTRAL')
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

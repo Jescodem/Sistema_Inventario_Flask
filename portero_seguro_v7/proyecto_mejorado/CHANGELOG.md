@@ -7,6 +7,18 @@ El formato agrupa por **versiones técnicas** (v6, v7) y por **parches funcional
 
 ---
 
+## [Función] — Red de edificios (IPs y anexos)
+
+- Nueva tabla `edificio_ips`: puntos de red de cada edificio (intercom, lobby, altavoz, DVR,
+  Mikrotik…) con IP, anexo y descripción.
+- Importador `importar_ips_edificios.py`: carga edificios y su red desde el Excel corporativo
+  (hoja ExtensionesIP). Re-ejecutable sin duplicar; normaliza IPs que Excel guardó como número
+  (192168100101 → 192.168.100.101). **No importa usuarios/claves** de los equipos por seguridad.
+- Vista `/edificios`: botón "IPs (n)" que **expande** la red del edificio (oculta a simple
+  vista), sección de red en el modal de detalle y buscador que también encuentra por IP/anexo.
+- Importados: 188 edificios nuevos (200 en total) y 868 puntos de red.
+- +3 pruebas (37 en total).
+
 ## [Fix] — Login por dominio tras el cambio HTTPS→HTTP
 
 - La cookie de sesión pasó a llamarse `ps_session`. Al servir antes el dominio por HTTPS, el

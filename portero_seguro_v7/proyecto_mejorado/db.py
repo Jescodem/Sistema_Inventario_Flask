@@ -238,6 +238,25 @@ def init_db():
         )
     ''')
 
+    # Red de cada edificio: puntos/equipos con su IP y anexo telefonico
+    # (intercom de calle, telefono de lobby, altavoz, DVR, Mikrotik...).
+    # Se muestran al expandir el edificio en /edificios; se cargan desde el
+    # Excel corporativo con importar_ips_edificios.py. A proposito NO se
+    # guardan usuarios ni claves de los equipos: esta vista la ve cualquier
+    # usuario del sistema (rol lectura incluido).
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS edificio_ips (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            edificio_id INTEGER NOT NULL,
+            nombre TEXT NOT NULL,
+            ip TEXT,
+            anexo TEXT,
+            descripcion TEXT,
+            orden INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (edificio_id) REFERENCES edificios(id)
+        )
+    ''')
+
     conn.execute('''
         CREATE TABLE IF NOT EXISTS salidas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -445,6 +464,7 @@ def init_db():
     conn.execute('CREATE INDEX IF NOT EXISTS idx_avances_personal ON avances_actividades(personal)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_seguimiento_herramientas_estado ON seguimiento_herramientas(estado)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_seguimiento_herramientas_edificio ON seguimiento_herramientas(edificio)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_edificio_ips_edificio ON edificio_ips(edificio_id)')
 
     migrar_ubicaciones(conn)
     migrar_usuarios(conn)

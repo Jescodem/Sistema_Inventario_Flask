@@ -35,13 +35,15 @@
                         <th>Edificio / Obra</th>
                         <th>Ubicación</th>
                         <th>Actividad</th>
+                        <th>Red</th>
                         <th>Maps</th>
                         <th class="text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for e in edificios %}
-                    <tr data-search="{{ (e.nombre or '') ~ ' ' ~ (e.ubicacion or '') ~ ' ' ~ (e.mapa_url or '') ~ ' ' ~ (e.observaciones or '') }}">
+                    {% set nips = ips_por_edificio.get(e.id, []) %}
+                    <tr data-search="{{ (e.nombre or '') ~ ' ' ~ (e.ubicacion or '') ~ ' ' ~ (e.mapa_url or '') ~ ' ' ~ (e.observaciones or '') }}{% for i in nips %} {{ i.nombre }} {{ i.ip or '' }} {{ i.anexo or '' }}{% endfor %}">
                         <td><strong>{{ e.nombre }}</strong><br><small class="text-muted">{{ e.observaciones or 'Sin observaciones' }}</small></td>
                         <td>{{ e.ubicacion or '-' }}</td>
                         <td>
@@ -49,6 +51,13 @@
                             <span class="badge bg-light text-dark border">Salidas: {{ e.total_salidas or 0 }}</span>
                             <span class="badge bg-light text-dark border">Avances: {{ e.total_avances or 0 }}</span>
                             <span class="badge bg-light text-dark border">Seguimiento: {{ e.total_seguimiento or 0 }}</span>
+                        </td>
+                        <td>
+                            {% if nips %}
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#ips{{ e.id }}" title="Ver IPs y anexos del edificio">
+                                <i class="bi bi-hdd-network"></i> IPs ({{ nips|length }})
+                            </button>
+                            {% else %}<span class="text-muted">—</span>{% endif %}
                         </td>
                         <td>{% if e.mapa_url %}<a href="{{ e.mapa_url }}" target="_blank" class="btn btn-sm btn-outline-primary">Abrir mapa</a>{% else %}<span class="text-muted">Sin link</span>{% endif %}</td>
                         <td class="text-end">
@@ -59,8 +68,39 @@
                             </form>
                         </td>
                     </tr>
+                    {# Fila expandible con la red del edificio: oculta hasta pulsar "IPs" #}
+                    <tr class="ips-row">
+                        <td colspan="6" class="p-0 border-0">
+                            <div class="collapse" id="ips{{ e.id }}">
+                                <div class="p-3" style="background:var(--c-surface2, #f8f9fa);">
+                                    {% if nips %}
+                                    <table class="table table-sm mb-0" style="font-size:.82rem;">
+                                        <thead>
+                                            <tr class="text-muted">
+                                                <th style="width:28%;">Punto / equipo</th>
+                                                <th style="width:22%;">IP</th>
+                                                <th style="width:18%;">Anexo</th>
+                                                <th>Notas</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for i in nips %}
+                                            <tr>
+                                                <td>{{ i.nombre }}</td>
+                                                <td style="font-family:var(--mono, monospace);">{{ i.ip or '—' }}</td>
+                                                <td style="font-family:var(--mono, monospace);">{{ i.anexo or '—' }}</td>
+                                                <td class="text-muted">{{ i.descripcion or '' }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
                     {% else %}
-                    <tr><td colspan="5" class="text-center py-5 text-muted">No hay edificios registrados.</td></tr>
+                    <tr><td colspan="6" class="text-center py-5 text-muted">No hay edificios registrados.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -80,6 +120,25 @@
             <p><strong>Actividad:</strong> Guías {{ e.total_guias or 0 }}, Salidas {{ e.total_salidas or 0 }}, Avances {{ e.total_avances or 0 }}, Seguimiento {{ e.total_seguimiento or 0 }}</p>
             <strong>Observaciones:</strong>
             <div class="border rounded p-3 bg-light mt-2" style="white-space:pre-wrap;">{{ e.observaciones or 'Sin observaciones' }}</div>
+            {% set nips_modal = ips_por_edificio.get(e.id, []) %}
+            {% if nips_modal %}
+            <strong class="d-block mt-3">Red del edificio ({{ nips_modal|length }} puntos):</strong>
+            <div class="border rounded mt-2" style="max-height:300px;overflow-y:auto;">
+                <table class="table table-sm mb-0" style="font-size:.8rem;">
+                    <thead><tr class="text-muted"><th>Punto / equipo</th><th>IP</th><th>Anexo</th><th>Notas</th></tr></thead>
+                    <tbody>
+                        {% for i in nips_modal %}
+                        <tr>
+                            <td>{{ i.nombre }}</td>
+                            <td style="font-family:monospace;">{{ i.ip or '—' }}</td>
+                            <td style="font-family:monospace;">{{ i.anexo or '—' }}</td>
+                            <td class="text-muted">{{ i.descripcion or '' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
         </div>
     </div></div>
 </div>
@@ -127,6 +186,11 @@
         rows.forEach(row => {
             const ok = !q || (row.dataset.search || '').toLowerCase().includes(q);
             row.style.display = ok ? '' : 'none';
+            // La fila expandible de IPs acompaña siempre a su edificio.
+            const ipsRow = row.nextElementSibling;
+            if(ipsRow && ipsRow.classList.contains('ips-row')){
+                ipsRow.style.display = ok ? '' : 'none';
+            }
             if(ok){ visibles++; }
         });
         if(contador){ contador.textContent = visibles; }
