@@ -22,7 +22,10 @@ Aplicadas tras una auditoría multi-agente del código (hallazgos de bajo riesgo
   el mismo chequeo de uso (guías, salidas, avances, seguimiento) que la vista de Edificios.
 - **Diseño:** la pantalla de Edificios se alinea con el resto de la app (título `page-title`,
   iconos Bootstrap en vez de emojis, modales sin el azul que desentonaba con el tema naranja) y
-  el buscador tiene `aria-label` (accesibilidad) y busca también por IP/anexo.
+  el buscador tiene `aria-label` (accesibilidad) y busca también por IP/anexo. Además se unifican
+  los modales de **toda** la app: los pocos que quedaban azules (avances, seguimiento, salidas)
+  pasan al estilo plano dominante; los de borrado se mantienen en rojo (peligro). Corregido un
+  `modal-header` duplicado en el dashboard.
 - **Limpieza:** se elimina código muerto (`row_to_dict`) e import sin usar (`ROLE_LEVELS`).
 - Suite: **49 pruebas**.
 
