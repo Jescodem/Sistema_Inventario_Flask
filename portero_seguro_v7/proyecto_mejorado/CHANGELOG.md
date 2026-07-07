@@ -1,5 +1,18 @@
 # Changelog — Portero Seguro
 
+## [Función] — Entrega de herramientas al personal
+
+- Nuevo módulo **Herramientas** (menú Operación): registra qué herramientas se le entregan a
+  cada persona, con **acta imprimible** y control de **devolución**.
+- Tablas nuevas `entregas_herramientas` (cabecera) y `entrega_herramienta_detalle` (líneas).
+- Al registrar una entrega para alguien que aún no está en Personal, **se le da de alta**
+  automáticamente. Formulario con filas dinámicas de herramientas (nombre, cantidad, serie/notas).
+- Cada entrega genera un código (`ENT-000001`) y un **acta** (`/herramientas/<id>`) lista para
+  imprimir (botón Imprimir, con líneas de firma "entregado por" / "recibido conforme").
+- Estados: **Activa** / **Devuelta** (al devolver se registra quién recibe y la fecha).
+- +4 pruebas (54 en total).
+
+
 ## [Fix] — Alerta de reposición del dashboard
 
 - La alerta solo mostraba productos con **stock mínimo configurado** (`stock_minimo > 0`), por lo

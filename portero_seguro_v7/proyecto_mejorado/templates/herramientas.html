@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Entrega de Herramientas | Portero Seguro{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="page-title"><i class="bi bi-tools"></i> Entrega de Herramientas</h1>
+        <p class="page-subtitle">Registro de herramientas entregadas a cada personal, con acta imprimible y control de devolución.</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevaEntrega">
+        <i class="bi bi-plus-lg"></i> Nueva entrega
+    </button>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4"><div class="card metric-card"><div class="card-body"><small class="text-muted text-uppercase">Entregas</small><h2 class="fw-bold text-primary mb-0">{{ resumen.total }}</h2></div></div></div>
+    <div class="col-6 col-md-4"><div class="card metric-card"><div class="card-body"><small class="text-muted text-uppercase">Activas (sin devolver)</small><h2 class="fw-bold text-warning mb-0">{{ resumen.activas }}</h2></div></div></div>
+    <div class="col-6 col-md-4"><div class="card metric-card"><div class="card-body"><small class="text-muted text-uppercase">Devueltas</small><h2 class="fw-bold text-success mb-0">{{ resumen.devueltas }}</h2></div></div></div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0">Historial de entregas</h5>
+        <span class="badge bg-primary">{{ entregas|length }} registro(s)</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Código</th><th>Personal</th><th>Cargo</th><th>Entregado por</th>
+                    <th>Fecha</th><th>Ítems</th><th>Estado</th><th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in entregas %}
+                <tr>
+                    <td style="font-family:var(--mono,monospace);font-size:.82rem;">{{ entrega_codigo(e.id) }}</td>
+                    <td><strong>{{ e.personal }}</strong></td>
+                    <td class="text-muted" style="font-size:.85rem;">{{ e.cargo or '—' }}</td>
+                    <td style="font-size:.85rem;">{{ e.entregado_por or '—' }}</td>
+                    <td style="font-size:.8rem;color:var(--c-muted);">{{ (e.fecha or '')[:16] }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ e.n_items }} ítem(s) · {{ e.n_unidades }} u.</span></td>
+                    <td>
+                        {% if e.estado == 'DEVUELTA' %}<span class="badge bg-success">Devuelta</span>
+                        {% else %}<span class="badge bg-warning">Activa</span>{% endif %}
+                    </td>
+                    <td class="text-end text-nowrap">
+                        <a href="/herramientas/{{ e.id }}" class="btn btn-sm btn-outline-primary" title="Ver / imprimir acta"><i class="bi bi-eye"></i></a>
+                        {% if e.estado != 'DEVUELTA' %}
+                        <button class="btn btn-sm btn-outline-success btn-devolver" title="Marcar como devuelta"
+                                data-id="{{ e.id }}" data-personal="{{ e.personal }}"><i class="bi bi-arrow-return-left"></i></button>
+                        {% endif %}
+                        <form action="/herramientas/{{ e.id }}/eliminar" method="POST" style="display:inline;"
+                              onsubmit="return confirm('¿Eliminar la entrega de {{ e.personal }}?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="bi bi-trash"></i></button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="text-center py-5 text-muted">Aún no hay entregas registradas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<datalist id="personalList">{% for p in personal %}<option value="{{ p.nombre }}">{% endfor %}</datalist>
+<datalist id="herramientasList">{% for h in herramientas_previas %}<option value="{{ h.herramienta }}">{% endfor %}</datalist>
+
+<!-- Modal: nueva entrega -->
+<div class="modal fade" id="modalNuevaEntrega" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content border-0 shadow">
+        <form action="/herramientas" method="POST">
+            <div class="modal-header"><h5 class="modal-title">Nueva entrega de herramientas</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label fw-semibold">Personal que recibe</label>
+                        <input name="personal" class="form-control" list="personalList" required placeholder="Selecciona o escribe un nombre">
+                        <div class="form-text">Si el nombre es nuevo, se registra automáticamente en Personal.</div>
+                    </div>
+                    <div class="col-md-6"><label class="form-label fw-semibold">Cargo <span class="text-muted">(opcional)</span></label>
+                        <input name="cargo" class="form-control" placeholder="Ej. Técnico Instalador"></div>
+                    <div class="col-md-6"><label class="form-label fw-semibold">Entregado por</label>
+                        <input name="entregado_por" class="form-control" list="personalList" placeholder="Quién entrega"></div>
+                    <div class="col-md-6"><label class="form-label fw-semibold">Proyecto / referencia <span class="text-muted">(opcional)</span></label>
+                        <input name="proyecto" class="form-control" placeholder="Ej. Mantenimiento, obra..."></div>
+                </div>
+
+                <hr>
+                <label class="form-label fw-semibold">Herramientas entregadas</label>
+                <div id="filasHerramientas">
+                    <div class="row g-2 mb-2 fila-herramienta">
+                        <div class="col-md-5"><input name="herramienta[]" class="form-control form-control-sm" list="herramientasList" placeholder="Herramienta (ej. Taladro)"></div>
+                        <div class="col-md-2"><input name="cantidad[]" type="number" min="1" value="1" class="form-control form-control-sm" placeholder="Cant."></div>
+                        <div class="col-md-4"><input name="descripcion[]" class="form-control form-control-sm" placeholder="Serie / notas (opcional)"></div>
+                        <div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger w-100 quitar-fila" title="Quitar">&times;</button></div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAgregarFila"><i class="bi bi-plus-lg"></i> Agregar herramienta</button>
+
+                <div class="mt-3"><label class="form-label fw-semibold">Observaciones <span class="text-muted">(opcional)</span></label>
+                    <textarea name="observaciones" class="form-control" rows="2" placeholder="Estado de las herramientas, condiciones..."></textarea></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary"><i class="bi bi-check-lg"></i> Registrar entrega</button></div>
+        </form>
+    </div></div>
+</div>
+
+<!-- Modal: devolución -->
+<div class="modal fade" id="modalDevolver" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow">
+        <form id="formDevolver" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="modal-header"><h5 class="modal-title">Registrar devolución</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <p class="mb-3">Marcar como <strong>devueltas</strong> las herramientas de <strong id="devPersonal"></strong>.</p>
+                <div class="mb-3"><label class="form-label">Recibido por</label><input name="recibido_por" class="form-control" placeholder="Quién recibe la devolución"></div>
+                <div class="mb-3"><label class="form-label">Observación <span class="text-muted">(opcional)</span></label><input name="motivo_devolucion" class="form-control" placeholder="Estado en que se devuelven..."></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-success">Confirmar devolución</button></div>
+        </form>
+    </div></div>
+</div>
+
+<script>
+(function(){
+    // Filas dinámicas de herramientas
+    var cont = document.getElementById('filasHerramientas');
+    document.getElementById('btnAgregarFila').addEventListener('click', function(){
+        var base = cont.querySelector('.fila-herramienta');
+        var nueva = base.cloneNode(true);
+        nueva.querySelectorAll('input').forEach(function(i){ if(i.name==='cantidad[]'){ i.value=1; } else { i.value=''; } });
+        cont.appendChild(nueva);
+    });
+    cont.addEventListener('click', function(ev){
+        var b = ev.target.closest('.quitar-fila');
+        if(!b) return;
+        if(cont.querySelectorAll('.fila-herramienta').length > 1){ b.closest('.fila-herramienta').remove(); }
+    });
+    // Modal de devolución
+    var modalDev = document.getElementById('modalDevolver');
+    if(modalDev && window.bootstrap){
+        var bsDev = new bootstrap.Modal(modalDev);
+        document.querySelectorAll('.btn-devolver').forEach(function(btn){
+            btn.addEventListener('click', function(){
+                document.getElementById('formDevolver').action = '/herramientas/' + btn.dataset.id + '/devolver';
+                document.getElementById('devPersonal').textContent = btn.dataset.personal;
+                bsDev.show();
+            });
+        });
+    }
+})();
+</script>
+{% endblock %}

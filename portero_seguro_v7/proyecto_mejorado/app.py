@@ -193,6 +193,10 @@ ROUTE_ACCESS = {
     'avances': {'GET': 'lectura', 'POST': 'operador'},
     'actualizar_avance': 'operador',
     'eliminar_avance': 'operador',
+    'herramientas_personal': {'GET': 'lectura', 'POST': 'operador'},
+    'ver_entrega_herramienta': 'lectura',
+    'devolver_entrega_herramienta': 'operador',
+    'eliminar_entrega_herramienta': 'operador',
     'usuarios': 'admin',
     'crear_usuario': 'admin',
     'editar_usuario': 'admin',
@@ -3801,6 +3805,161 @@ def eliminar_avance(id):
         conn.close()
 
     return redirect(url_for('avances'))
+
+
+# ── Entregas de herramientas al personal ─────────────────────────────────────
+def entrega_codigo(entrega_id):
+    return f'ENT-{int(entrega_id):06d}'
+
+
+@app.route('/herramientas', methods=['GET', 'POST'])
+def herramientas_personal():
+    """Registra que herramientas se le entregan a cada persona (con acta)."""
+    conn = get_db_connection()
+    if request.method == 'POST':
+        try:
+            personal = clean_text(request.form.get('personal'))
+            cargo = clean_text(request.form.get('cargo'))
+            entregado_por = clean_text(request.form.get('entregado_por'))
+            proyecto = clean_text(request.form.get('proyecto'))
+            observaciones = clean_text(request.form.get('observaciones'))
+
+            herramientas = request.form.getlist('herramienta[]')
+            cantidades = request.form.getlist('cantidad[]')
+            descripciones = request.form.getlist('descripcion[]')
+
+            items = []
+            for i, h in enumerate(herramientas):
+                h = clean_text(h)
+                if not h:
+                    continue
+                cant = safe_int(cantidades[i] if i < len(cantidades) else 1) or 1
+                desc = clean_text(descripciones[i] if i < len(descripciones) else '')
+                items.append((h, cant, desc))
+
+            errores = []
+            if not personal:
+                errores.append('Indica el personal que recibe las herramientas.')
+            if not items:
+                errores.append('Agrega al menos una herramienta.')
+            if errores:
+                for e in errores:
+                    flash(e, 'danger')
+                conn.close()
+                return redirect(url_for('herramientas_personal'))
+
+            # Registra el personal si es nuevo (queda en el catalogo de Personal).
+            existe = conn.execute('SELECT cargo FROM personal WHERE nombre = ? COLLATE NOCASE',
+                                  (personal,)).fetchone()
+            if not existe:
+                conn.execute('INSERT INTO personal (nombre, cargo) VALUES (?, ?)',
+                             (personal, cargo or 'Sin cargo'))
+            elif not cargo:
+                cargo = existe['cargo']
+
+            cur = conn.execute('''
+                INSERT INTO entregas_herramientas
+                    (personal, cargo, entregado_por, proyecto, observaciones, estado)
+                VALUES (?, ?, ?, ?, ?, 'ACTIVA')
+            ''', (personal, cargo, entregado_por, proyecto, observaciones))
+            entrega_id = cur.lastrowid
+            for h, cant, desc in items:
+                conn.execute('''
+                    INSERT INTO entrega_herramienta_detalle
+                        (entrega_id, herramienta, cantidad, descripcion)
+                    VALUES (?, ?, ?, ?)
+                ''', (entrega_id, h, cant, desc))
+            conn.commit()
+            flash(f'Entrega {entrega_codigo(entrega_id)} registrada para {personal}.', 'success')
+            conn.close()
+            return redirect(url_for('ver_entrega_herramienta', id=entrega_id))
+        except Exception as e:
+            conn.rollback()
+            flash(f'Error registrando la entrega: {e}', 'danger')
+            conn.close()
+            return redirect(url_for('herramientas_personal'))
+
+    entregas = conn.execute('''
+        SELECT e.*,
+               (SELECT COUNT(*) FROM entrega_herramienta_detalle d WHERE d.entrega_id = e.id) AS n_items,
+               (SELECT COALESCE(SUM(d.cantidad), 0) FROM entrega_herramienta_detalle d WHERE d.entrega_id = e.id) AS n_unidades
+        FROM entregas_herramientas e
+        ORDER BY e.id DESC
+    ''').fetchall()
+    resumen = {
+        'total': len(entregas),
+        'activas': sum(1 for e in entregas if (e['estado'] or 'ACTIVA') == 'ACTIVA'),
+        'devueltas': sum(1 for e in entregas if e['estado'] == 'DEVUELTA'),
+    }
+    personal = conn.execute('SELECT nombre, cargo FROM personal ORDER BY nombre').fetchall()
+    herramientas_previas = conn.execute(
+        'SELECT DISTINCT herramienta FROM entrega_herramienta_detalle ORDER BY herramienta'
+    ).fetchall()
+    conn.close()
+    return render_template('herramientas.html', entregas=entregas, resumen=resumen,
+                           personal=personal, herramientas_previas=herramientas_previas,
+                           entrega_codigo=entrega_codigo)
+
+
+@app.route('/herramientas/<int:id>')
+def ver_entrega_herramienta(id):
+    conn = get_db_connection()
+    entrega = conn.execute('SELECT * FROM entregas_herramientas WHERE id = ?', (id,)).fetchone()
+    if not entrega:
+        conn.close()
+        flash('La entrega no existe.', 'danger')
+        return redirect(url_for('herramientas_personal'))
+    detalle = conn.execute(
+        'SELECT * FROM entrega_herramienta_detalle WHERE entrega_id = ? ORDER BY id', (id,)
+    ).fetchall()
+    conn.close()
+    return render_template('ver_entrega_herramienta.html', entrega=entrega,
+                           detalle=detalle, codigo=entrega_codigo(id))
+
+
+@app.route('/herramientas/<int:id>/devolver', methods=['POST'])
+def devolver_entrega_herramienta(id):
+    conn = get_db_connection()
+    try:
+        entrega = conn.execute('SELECT estado FROM entregas_herramientas WHERE id = ?', (id,)).fetchone()
+        if not entrega:
+            flash('La entrega no existe.', 'danger')
+        elif entrega['estado'] == 'DEVUELTA':
+            flash('Esta entrega ya estaba marcada como devuelta.', 'warning')
+        else:
+            recibido_por = clean_text(request.form.get('recibido_por'))
+            motivo = clean_text(request.form.get('motivo_devolucion'))
+            conn.execute('''
+                UPDATE entregas_herramientas
+                SET estado = 'DEVUELTA', fecha_devolucion = CURRENT_TIMESTAMP,
+                    recibido_por = ?, motivo_devolucion = ?
+                WHERE id = ?
+            ''', (recibido_por, motivo, id))
+            conn.execute("UPDATE entrega_herramienta_detalle SET estado = 'DEVUELTA' WHERE entrega_id = ?", (id,))
+            conn.commit()
+            flash('Entrega marcada como devuelta.', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error al registrar la devolucion: {e}', 'danger')
+    finally:
+        conn.close()
+    return redirect(url_for('herramientas_personal'))
+
+
+@app.route('/herramientas/<int:id>/eliminar', methods=['POST'])
+def eliminar_entrega_herramienta(id):
+    conn = get_db_connection()
+    try:
+        conn.execute('DELETE FROM entrega_herramienta_detalle WHERE entrega_id = ?', (id,))
+        conn.execute('DELETE FROM entregas_herramientas WHERE id = ?', (id,))
+        conn.commit()
+        flash('Entrega eliminada.', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error eliminando la entrega: {e}', 'danger')
+    finally:
+        conn.close()
+    return redirect(url_for('herramientas_personal'))
 
 
 if __name__ == '__main__':

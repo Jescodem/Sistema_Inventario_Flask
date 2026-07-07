@@ -393,6 +393,36 @@ def init_db():
         )
     ''')
 
+    # Entregas de herramientas al personal: registro de que se le entrega a
+    # cada persona, con acta imprimible y control de devolucion. Cabecera +
+    # detalle (una fila por herramienta entregada).
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS entregas_herramientas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            personal TEXT NOT NULL,
+            cargo TEXT,
+            entregado_por TEXT,
+            proyecto TEXT,
+            observaciones TEXT,
+            estado TEXT NOT NULL DEFAULT 'ACTIVA',
+            fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            fecha_devolucion TIMESTAMP,
+            recibido_por TEXT,
+            motivo_devolucion TEXT
+        )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS entrega_herramienta_detalle (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            entrega_id INTEGER NOT NULL,
+            herramienta TEXT NOT NULL,
+            cantidad INTEGER NOT NULL DEFAULT 1,
+            descripcion TEXT,
+            estado TEXT NOT NULL DEFAULT 'ENTREGADA',
+            FOREIGN KEY (entrega_id) REFERENCES entregas_herramientas(id)
+        )
+    ''')
+
     conn.execute('''
         CREATE TABLE IF NOT EXISTS avances_actividades (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -469,6 +499,9 @@ def init_db():
     conn.execute('CREATE INDEX IF NOT EXISTS idx_seguimiento_herramientas_estado ON seguimiento_herramientas(estado)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_seguimiento_herramientas_edificio ON seguimiento_herramientas(edificio)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_edificio_ips_edificio ON edificio_ips(edificio_id)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_entregas_herr_estado ON entregas_herramientas(estado)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_entregas_herr_personal ON entregas_herramientas(personal)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_entrega_herr_detalle ON entrega_herramienta_detalle(entrega_id)')
 
     migrar_ubicaciones(conn)
     migrar_usuarios(conn)

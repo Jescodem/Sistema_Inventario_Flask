@@ -668,5 +668,58 @@ class TestConfigEdificios(OpsBase):
             self._scalar("SELECT COUNT(*) FROM seguimiento_equipos WHERE edificio='EDIF_CFG_REN2'"), 1)
 
 
+class TestEntregaHerramientas(OpsBase):
+
+    def test_crear_entrega_registra_personal_y_detalle(self):
+        self.login('op_test')
+        r = self.client.post('/herramientas', data={
+            'personal': 'Nuevo Tecnico QRS', 'cargo': 'Tecnico',
+            'entregado_por': 'op_test', 'proyecto': 'Obra X',
+            'herramienta[]': ['Taladro', 'Escalera'],
+            'cantidad[]': ['1', '2'],
+            'descripcion[]': ['SN-123', ''],
+            'observaciones': 'buen estado', 'csrf_token': self.csrf(),
+        }, follow_redirects=False)
+        self.assertEqual(r.status_code, 302)
+        eid = self._scalar("SELECT id FROM entregas_herramientas WHERE personal='Nuevo Tecnico QRS'")
+        self.assertIsNotNone(eid)
+        self.assertEqual(self._scalar(
+            "SELECT COUNT(*) FROM entrega_herramienta_detalle WHERE entrega_id=?", (eid,)), 2)
+        # Registra el personal nuevo en el catalogo
+        self.assertIsNotNone(self._scalar("SELECT id FROM personal WHERE nombre='Nuevo Tecnico QRS'"))
+        # El acta imprimible renderiza
+        self.assertEqual(self.client.get(f'/herramientas/{eid}').status_code, 200)
+
+    def test_devolver_entrega(self):
+        self.login('op_test')
+        self.client.post('/herramientas', data={
+            'personal': 'Dev Tester', 'herramienta[]': ['Martillo'],
+            'cantidad[]': ['1'], 'descripcion[]': [''], 'csrf_token': self.csrf(),
+        }, follow_redirects=False)
+        eid = self._scalar("SELECT id FROM entregas_herramientas WHERE personal='Dev Tester'")
+        self.client.post(f'/herramientas/{eid}/devolver',
+                         data={'recibido_por': 'op_test', 'csrf_token': self.csrf()},
+                         follow_redirects=False)
+        self.assertEqual(self._scalar("SELECT estado FROM entregas_herramientas WHERE id=?", (eid,)), 'DEVUELTA')
+        self.assertEqual(self._scalar(
+            "SELECT estado FROM entrega_herramienta_detalle WHERE entrega_id=?", (eid,)), 'DEVUELTA')
+
+    def test_crear_sin_herramientas_es_rechazado(self):
+        self.login('op_test')
+        self.client.post('/herramientas', data={
+            'personal': 'Sin Items ZZ', 'herramienta[]': [''],
+            'cantidad[]': ['1'], 'descripcion[]': [''], 'csrf_token': self.csrf(),
+        }, follow_redirects=False)
+        self.assertIsNone(self._scalar("SELECT id FROM entregas_herramientas WHERE personal='Sin Items ZZ'"))
+
+    def test_lectura_no_puede_crear_entrega(self):
+        self.login('lec_test')
+        self.client.post('/herramientas', data={
+            'personal': 'Intruso Lectura', 'herramienta[]': ['X'],
+            'cantidad[]': ['1'], 'descripcion[]': [''], 'csrf_token': self.csrf(),
+        }, follow_redirects=False)
+        self.assertIsNone(self._scalar("SELECT id FROM entregas_herramientas WHERE personal='Intruso Lectura'"))
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

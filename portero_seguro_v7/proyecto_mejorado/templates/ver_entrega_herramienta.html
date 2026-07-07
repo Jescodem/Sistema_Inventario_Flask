@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Acta {{ codigo }} | Portero Seguro{% endblock %}
+{% block content %}
+<style>
+    .acta{ max-width:800px; margin:0 auto; }
+    .acta-band{ background:linear-gradient(135deg,#E8730C,#B5560A); color:#fff; border-radius:10px 10px 0 0; padding:16px 22px; display:flex; justify-content:space-between; align-items:center; }
+    .acta-body{ border:1px solid var(--c-border,#e5e5e5); border-top:none; border-radius:0 0 10px 10px; padding:22px; }
+    .acta-grid{ display:grid; grid-template-columns:1fr 1fr; gap:6px 24px; font-size:.9rem; margin-bottom:16px; }
+    .acta-grid .lbl{ color:var(--c-muted,#777); }
+    .firma{ margin-top:40px; display:grid; grid-template-columns:1fr 1fr; gap:40px; }
+    .firma .linea{ border-top:1px solid #333; padding-top:6px; text-align:center; font-size:.82rem; color:#555; }
+    @media print {
+        #sb, .no-print, .sb-footer, nav.sb { display:none !important; }
+        #mainContent, .main-content { margin:0 !important; padding:0 !important; }
+        .acta{ max-width:100%; }
+        .acta-band{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+        a[href]:after{ content:""; }
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3 no-print">
+    <a href="/herramientas" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Volver</a>
+    <div class="d-flex gap-2">
+        {% if entrega.estado != 'DEVUELTA' %}
+        <form action="/herramientas/{{ entrega.id }}/devolver" method="POST" onsubmit="return confirm('¿Marcar como devuelta?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="btn btn-outline-success btn-sm"><i class="bi bi-arrow-return-left"></i> Marcar devuelta</button>
+        </form>
+        {% endif %}
+        <button onclick="window.print()" class="btn btn-primary btn-sm"><i class="bi bi-printer"></i> Imprimir acta</button>
+    </div>
+</div>
+
+<div class="acta">
+    <div class="acta-band">
+        <div>
+            <div style="font-size:1.15rem;font-weight:700;">Acta de Entrega de Herramientas</div>
+            <div style="opacity:.9;font-size:.85rem;">Portero Seguro — Control de Activos</div>
+        </div>
+        <div style="text-align:right;">
+            <div style="font-family:monospace;font-size:1.1rem;font-weight:700;">{{ codigo }}</div>
+            {% if entrega.estado == 'DEVUELTA' %}<span class="badge bg-light text-success">DEVUELTA</span>
+            {% else %}<span class="badge bg-light text-dark">ACTIVA</span>{% endif %}
+        </div>
+    </div>
+    <div class="acta-body">
+        <div class="acta-grid">
+            <div><span class="lbl">Personal que recibe:</span> <strong>{{ entrega.personal }}</strong></div>
+            <div><span class="lbl">Cargo:</span> {{ entrega.cargo or '—' }}</div>
+            <div><span class="lbl">Entregado por:</span> {{ entrega.entregado_por or '—' }}</div>
+            <div><span class="lbl">Fecha de entrega:</span> {{ (entrega.fecha or '')[:16] }}</div>
+            <div><span class="lbl">Proyecto / referencia:</span> {{ entrega.proyecto or '—' }}</div>
+            {% if entrega.estado == 'DEVUELTA' %}
+            <div><span class="lbl">Devuelto:</span> {{ (entrega.fecha_devolucion or '')[:16] }} {% if entrega.recibido_por %}· recibió {{ entrega.recibido_por }}{% endif %}</div>
+            {% endif %}
+        </div>
+
+        <table class="table table-sm">
+            <thead class="table-light">
+                <tr><th style="width:40px;">#</th><th>Herramienta</th><th style="width:80px;">Cant.</th><th>Serie / notas</th><th style="width:110px;">Estado</th></tr>
+            </thead>
+            <tbody>
+                {% for d in detalle %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td><strong>{{ d.herramienta }}</strong></td>
+                    <td>{{ d.cantidad }}</td>
+                    <td class="text-muted">{{ d.descripcion or '' }}</td>
+                    <td>{% if d.estado == 'DEVUELTA' %}<span class="badge bg-success">Devuelta</span>{% else %}<span class="badge bg-warning">Entregada</span>{% endif %}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-center text-muted">Sin herramientas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if entrega.observaciones %}
+        <div style="font-size:.85rem;"><span class="lbl" style="color:var(--c-muted,#777);">Observaciones:</span> {{ entrega.observaciones }}</div>
+        {% endif %}
+        {% if entrega.estado == 'DEVUELTA' and entrega.motivo_devolucion %}
+        <div style="font-size:.85rem;margin-top:4px;"><span class="lbl" style="color:var(--c-muted,#777);">Al devolver:</span> {{ entrega.motivo_devolucion }}</div>
+        {% endif %}
+
+        <div class="firma">
+            <div class="linea">Entregado por<br><strong>{{ entrega.entregado_por or '' }}</strong></div>
+            <div class="linea">Recibido conforme<br><strong>{{ entrega.personal }}</strong></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
