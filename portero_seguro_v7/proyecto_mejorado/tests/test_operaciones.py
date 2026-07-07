@@ -337,7 +337,7 @@ class TestAlertasStock(OpsBase):
         self.crear_producto_cantidad(cantidad=2, stock_minimo=5,
                                      desc='Producto Bajo Minimo XYZ')
         html = self.client.get('/').get_data(as_text=True)
-        self.assertIn('Reposición pendiente', html)
+        self.assertIn('por reponer', html)
         self.assertIn('Producto Bajo Minimo XYZ', html)
 
     def test_producto_con_stock_suficiente_no_alerta_falsos(self):
@@ -345,10 +345,12 @@ class TestAlertasStock(OpsBase):
         eid = self.crear_producto_cantidad(cantidad=50, stock_minimo=5,
                                            desc='Producto Bien Surtido QQQ')
         html = self.client.get('/').get_data(as_text=True)
-        # No debe listar este producto como reposicion pendiente
-        bloque = html.split('Reposición pendiente')
-        if len(bloque) > 1:
-            self.assertNotIn('Producto Bien Surtido QQQ', bloque[1][:4000])
+        # Aisla SOLO el bloque de la alerta (no la tabla de inventario de abajo,
+        # donde el producto aparece legitimamente).
+        ini = html.find('id="alertaStock"')
+        fin = html.find('<!-- Search', ini) if ini != -1 else -1
+        bloque_alerta = html[ini:fin] if (ini != -1 and fin != -1) else ''
+        self.assertNotIn('Producto Bien Surtido QQQ', bloque_alerta)
 
     def test_agotado_sin_minimo_aparece_en_alerta(self):
         # Un producto agotado (cantidad 0) debe alertar aunque no tenga
@@ -357,7 +359,7 @@ class TestAlertasStock(OpsBase):
         self.crear_producto_cantidad(cantidad=0, stock_minimo=0,
                                      desc='Producto Agotado ZZZ')
         html = self.client.get('/').get_data(as_text=True)
-        self.assertIn('Reposición pendiente', html)
+        self.assertIn('por reponer', html)
         self.assertIn('Producto Agotado ZZZ', html)
         self.assertIn('Agotado', html)
 

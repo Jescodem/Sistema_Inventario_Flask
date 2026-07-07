@@ -93,26 +93,39 @@
     </div>
 </div>
 
-<!-- Alertas de reposición (agotado o bajo el mínimo configurado) -->
+<!-- Alerta de reposición: botón compacto que despliega la lista (no invasivo) -->
 {% if alertas_stock %}
-<div class="mb-4" style="background:#FDECEA;border:1px solid #F5C6C0;border-left:4px solid #C0392B;border-radius:10px;padding:12px 16px;">
-    <div style="font-weight:700;font-size:.9rem;color:#8E2F23;margin-bottom:8px;">
+<div class="mb-3">
+    <button class="btn btn-sm alerta-stock-btn" type="button" data-bs-toggle="collapse" data-bs-target="#alertaStock"
+            aria-expanded="false" aria-controls="alertaStock"
+            style="background:#FDECEA;border:1px solid #F0B9B1;color:#8E2F23;font-weight:600;font-size:.82rem;border-radius:20px;">
         <i class="bi bi-exclamation-triangle-fill"></i>
-        Reposición pendiente: {{ critico }} producto(s) — agotados o bajo su stock mínimo
-    </div>
-    <div class="d-flex flex-wrap gap-2">
-        {% for a in alertas_stock %}
-        <a href="/?q={{ a.descripcion|urlencode }}" title="{{ a.categoria }} · stock {{ a.cantidad }}{% if a.stock_minimo %} / mínimo {{ a.stock_minimo }}{% endif %}"
-           style="text-decoration:none;background:#fff;border:1px solid #F0B9B1;border-radius:16px;padding:3px 12px;font-size:.78rem;color:#7A2A20;">
-            {{ a.marca }} {{ a.descripcion }}
-            <strong style="color:{{ '#C0392B' if a.cantidad <= 0 else '#B5560A' }};">&nbsp;{% if a.cantidad <= 0 %}Agotado{% else %}{{ a.cantidad }}/{{ a.stock_minimo }}{% endif %}</strong>
-        </a>
-        {% endfor %}
-        {% if critico > alertas_stock|length %}
-        <span style="align-self:center;font-size:.78rem;color:#8E2F23;font-weight:600;">+{{ critico - alertas_stock|length }} más…</span>
-        {% endif %}
+        {{ critico }} producto(s) por reponer
+        <i class="bi bi-chevron-down alerta-chevron" style="font-size:.68rem;"></i>
+    </button>
+    <div class="collapse mt-2" id="alertaStock">
+        <div style="background:#FDECEA;border:1px solid #F5C6C0;border-left:4px solid #C0392B;border-radius:10px;padding:12px 16px;">
+            <div style="font-size:.78rem;color:#8E2F23;margin-bottom:8px;">Agotados o en/bajo su stock mínimo. Clic en un producto para verlo en la tabla.</div>
+            <div class="d-flex flex-wrap gap-2">
+                {% for a in alertas_stock %}
+                <a href="/?q={{ a.descripcion|urlencode }}" title="{{ a.categoria }} · stock {{ a.cantidad }}{% if a.stock_minimo %} / mínimo {{ a.stock_minimo }}{% endif %}"
+                   style="text-decoration:none;background:#fff;border:1px solid #F0B9B1;border-radius:16px;padding:3px 12px;font-size:.78rem;color:#7A2A20;">
+                    {{ a.marca }} {{ a.descripcion }}
+                    <strong style="color:{{ '#C0392B' if a.cantidad <= 0 else '#B5560A' }};">&nbsp;{% if a.cantidad <= 0 %}Agotado{% else %}{{ a.cantidad }}/{{ a.stock_minimo }}{% endif %}</strong>
+                </a>
+                {% endfor %}
+                {% if critico > alertas_stock|length %}
+                <span style="align-self:center;font-size:.78rem;color:#8E2F23;font-weight:600;">+{{ critico - alertas_stock|length }} más…</span>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
+<style>
+    .alerta-stock-btn .alerta-chevron{ transition:transform .2s; }
+    .alerta-stock-btn[aria-expanded="true"] .alerta-chevron{ transform:rotate(180deg); }
+    .alerta-stock-btn:hover{ background:#FBD9D2 !important; }
+</style>
 {% endif %}
 
 <!-- Search -->
