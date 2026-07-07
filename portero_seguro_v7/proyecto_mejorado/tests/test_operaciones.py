@@ -348,7 +348,18 @@ class TestAlertasStock(OpsBase):
         # No debe listar este producto como reposicion pendiente
         bloque = html.split('Reposición pendiente')
         if len(bloque) > 1:
-            self.assertNotIn('Producto Bien Surtido QQQ', bloque[1][:2000])
+            self.assertNotIn('Producto Bien Surtido QQQ', bloque[1][:4000])
+
+    def test_agotado_sin_minimo_aparece_en_alerta(self):
+        # Un producto agotado (cantidad 0) debe alertar aunque no tenga
+        # stock_minimo configurado (regresion: antes exigia stock_minimo>0).
+        self.login('op_test')
+        self.crear_producto_cantidad(cantidad=0, stock_minimo=0,
+                                     desc='Producto Agotado ZZZ')
+        html = self.client.get('/').get_data(as_text=True)
+        self.assertIn('Reposición pendiente', html)
+        self.assertIn('Producto Agotado ZZZ', html)
+        self.assertIn('Agotado', html)
 
 
 class TestConfiguracionSesion(unittest.TestCase):

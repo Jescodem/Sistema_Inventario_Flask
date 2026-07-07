@@ -1,5 +1,16 @@
 # Changelog — Portero Seguro
 
+## [Fix] — Alerta de reposición del dashboard
+
+- La alerta solo mostraba productos con **stock mínimo configurado** (`stock_minimo > 0`), por lo
+  que en la práctica listaba un único producto. Ahora avisa también de los **agotados**
+  (`cantidad = 0`) aunque no tengan mínimo definido.
+- El indicador **"Stock crítico"** y la alerta usan ahora **la misma regla** (agotado o en/bajo el
+  mínimo), así que el número de arriba coincide con la lista.
+- La lista muestra hasta 30 productos con un "+N más…" si hay más; los agotados se marcan como
+  **"Agotado"**. +1 prueba (50 en total).
+
+
 Historial de versiones y parches, del más reciente al más antiguo. Consolida los documentos
 `README_*.md` de cada entrega.
 

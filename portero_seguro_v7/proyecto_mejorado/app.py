@@ -1266,10 +1266,13 @@ def index():
 
     total_stock = conn.execute('SELECT SUM(cantidad) FROM equipos WHERE estado = "En Stock"').fetchone()[0] or 0
     en_revision = conn.execute('SELECT SUM(cantidad) FROM equipos WHERE estado = "En Revision"').fetchone()[0] or 0
+    # Un producto necesita reposicion si esta AGOTADO (cantidad <= 0) o en/por
+    # debajo del minimo que se le haya configurado. El indicador y la alerta de
+    # abajo usan exactamente la misma regla para que siempre coincidan.
     critico = conn.execute("""
         SELECT COUNT(*) FROM equipos
-        WHERE estado = 'En Stock'
-        AND cantidad <= CASE WHEN stock_minimo > 0 THEN stock_minimo ELSE 5 END
+        WHERE estado IN ('En Stock', 'Sin Stock')
+          AND (cantidad <= 0 OR (stock_minimo > 0 AND cantidad <= stock_minimo))
     """).fetchone()[0] or 0
 
     # Alertas de reposicion: productos con stock minimo definido cuyo stock
@@ -1279,10 +1282,9 @@ def index():
         SELECT id, categoria, marca, descripcion, cantidad, stock_minimo
         FROM equipos
         WHERE estado IN ('En Stock', 'Sin Stock')
-          AND stock_minimo > 0
-          AND cantidad <= stock_minimo
-        ORDER BY (cantidad * 1.0) / stock_minimo, descripcion
-        LIMIT 15
+          AND (cantidad <= 0 OR (stock_minimo > 0 AND cantidad <= stock_minimo))
+        ORDER BY cantidad ASC, descripcion
+        LIMIT 30
     ''').fetchall()
 
     categorias_db = conn.execute('SELECT nombre FROM categorias ORDER BY nombre').fetchall()

@@ -93,21 +93,24 @@
     </div>
 </div>
 
-<!-- Alertas de reposición (stock en o bajo el mínimo) -->
+<!-- Alertas de reposición (agotado o bajo el mínimo configurado) -->
 {% if alertas_stock %}
 <div class="mb-4" style="background:#FDECEA;border:1px solid #F5C6C0;border-left:4px solid #C0392B;border-radius:10px;padding:12px 16px;">
     <div style="font-weight:700;font-size:.9rem;color:#8E2F23;margin-bottom:8px;">
         <i class="bi bi-exclamation-triangle-fill"></i>
-        Reposición pendiente: {{ alertas_stock|length }} producto(s) en o bajo su stock mínimo
+        Reposición pendiente: {{ critico }} producto(s) — agotados o bajo su stock mínimo
     </div>
     <div class="d-flex flex-wrap gap-2">
         {% for a in alertas_stock %}
-        <a href="/?q={{ a.descripcion|urlencode }}" title="{{ a.categoria }} · stock {{ a.cantidad }} / mínimo {{ a.stock_minimo }}"
+        <a href="/?q={{ a.descripcion|urlencode }}" title="{{ a.categoria }} · stock {{ a.cantidad }}{% if a.stock_minimo %} / mínimo {{ a.stock_minimo }}{% endif %}"
            style="text-decoration:none;background:#fff;border:1px solid #F0B9B1;border-radius:16px;padding:3px 12px;font-size:.78rem;color:#7A2A20;">
             {{ a.marca }} {{ a.descripcion }}
-            <strong style="color:{{ '#C0392B' if a.cantidad == 0 else '#B5560A' }};">&nbsp;{{ a.cantidad }}/{{ a.stock_minimo }}</strong>
+            <strong style="color:{{ '#C0392B' if a.cantidad <= 0 else '#B5560A' }};">&nbsp;{% if a.cantidad <= 0 %}Agotado{% else %}{{ a.cantidad }}/{{ a.stock_minimo }}{% endif %}</strong>
         </a>
         {% endfor %}
+        {% if critico > alertas_stock|length %}
+        <span style="align-self:center;font-size:.78rem;color:#8E2F23;font-weight:600;">+{{ critico - alertas_stock|length }} más…</span>
+        {% endif %}
     </div>
 </div>
 {% endif %}
