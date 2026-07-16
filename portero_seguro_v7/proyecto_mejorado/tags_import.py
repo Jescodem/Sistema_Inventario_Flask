@@ -78,6 +78,46 @@ def parse_fecha(valor):
     return texto
 
 
+def normalizar_tipo(valor):
+    """Unifica las variantes del mismo tipo escritas distinto.
+
+    En los Excel de campo el mismo concepto aparece con mayúsculas y
+    palabras cambiadas: "Tag pagado" / "Tag Pagado", "Tarjeta blanca" /
+    "Tarjeta Blanca", "Tag Regalo" / "Tag de regalo"... Aquí todas
+    colapsan a un único nombre canónico para que el filtro por tipo
+    muestre una sola opción por concepto.
+    """
+    texto = _texto(valor)
+    if not texto:
+        return ''
+    plano = _sin_acentos(texto).casefold()
+    palabras = set(re.sub(r'[^a-z0-9 ]', ' ', plano).split())
+
+    if 'tag' in palabras or 'tarjeta' in palabras:
+        base = 'Tag' if 'tag' in palabras else 'Tarjeta'
+        if 'regalo' in palabras:
+            return f'{base} de Regalo'
+        if 'migrado' in palabras or 'migrada' in palabras:
+            return f'{base} Migrado'
+        if 'pagado' in palabras or 'pagada' in palabras:
+            return f'{base} Pagado'
+        if 'blanca' in palabras or 'blanco' in palabras:
+            return f'{base} Blanca'
+        if 'numeros' in palabras or 'numero' in palabras:
+            return f'{base} con Números'
+        if palabras == {'tag'} or palabras == {'tarjeta'}:
+            return base
+
+    # Tipo no reconocido: al menos unifica las mayúsculas (Título,
+    # con los conectores en minúscula) para que "x y" == "X Y".
+    menores = {'de', 'con', 'y', 'a', 'del', 'la', 'el'}
+    resultado = []
+    for i, palabra in enumerate(texto.split()):
+        pl = palabra.lower()
+        resultado.append(pl if (i > 0 and pl in menores) else pl.capitalize())
+    return ' '.join(resultado)
+
+
 def clave_dedupe(registro):
     return (
         _sin_acentos(registro['edificio']).casefold(),
@@ -114,7 +154,7 @@ def _fila_a_registro(fila, mapa):
         'residente': _texto(celda('residente')),
         'codigo': normalizar_codigo(celda('codigo')),
         'fecha': parse_fecha(celda('fecha')),
-        'tipo': _texto(celda('tipo')),
+        'tipo': normalizar_tipo(celda('tipo')),
         'numero': _texto(celda('numero')) if 'numero' in mapa else '',
         'observaciones': '',
     }

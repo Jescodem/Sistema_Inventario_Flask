@@ -4007,7 +4007,7 @@ def tags_acceso():
             'residente': clean_text(request.form.get('residente')),
             'codigo': tags_import.normalizar_codigo(request.form.get('codigo')),
             'numero': clean_text(request.form.get('numero')),
-            'tipo': clean_text(request.form.get('tipo')) or 'Tag',
+            'tipo': tags_import.normalizar_tipo(request.form.get('tipo')) or 'Tag',
             'fecha': tags_import.parse_fecha(request.form.get('fecha')),
             'observaciones': clean_text(request.form.get('observaciones')),
         }
@@ -4167,7 +4167,7 @@ def editar_tag(id):
             clean_text(request.form.get('residente')),
             codigo,
             clean_text(request.form.get('numero')),
-            clean_text(request.form.get('tipo')),
+            tags_import.normalizar_tipo(request.form.get('tipo')),
             tags_import.parse_fecha(request.form.get('fecha')),
             clean_text(request.form.get('observaciones')),
             id,

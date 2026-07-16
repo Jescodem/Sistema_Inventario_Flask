@@ -270,6 +270,41 @@ class TestTagsAcceso(BaseTestCase):
         r = self._post('/tags/depurar', {})
         self.assertIn('2 registro(s) duplicado(s)', r.get_data(as_text=True))
 
+    def test_tipos_se_normalizan_a_un_solo_nombre(self):
+        """Variantes del mismo tipo colapsan a un único nombre canónico."""
+        import tags_import
+        casos = {
+            'Tag': ['Tag', 'tag', 'TAG'],
+            'Tag Pagado': ['Tag pagado', 'Tag Pagado', 'tag PAGADO'],
+            'Tag de Regalo': ['Tag de Regalo', 'Tag de regalo', 'Tag Regalo', 'Tag de  regalo'],
+            'Tag Migrado': ['Tag Migrado', 'Tag migrado'],
+            'Tarjeta Blanca': ['Tarjeta blanca', 'Tarjeta Blanca', 'tarjeta BLANCA'],
+            'Tarjeta con Números': ['Tarjeta numeros', 'Tarjeta con numeros', 'Tarjeta Números'],
+            'Tarjeta Pagado': ['Tarjeta Pagado', 'tarjeta pagado'],
+        }
+        for canonico, variantes in casos.items():
+            for v in variantes:
+                self.assertEqual(tags_import.normalizar_tipo(v), canonico, f'{v!r}')
+
+        # La migración de init_db corrige lo ya guardado sin tocar los registros
+        conn = get_db_connection()
+        conn.execute("""
+            INSERT INTO tags_acceso (edificio, departamento, residente, codigo, tipo)
+            VALUES ('Milano', '801', 'Maria', '27A8E13F', 'Tag pagado'),
+                   ('Milano', '802', 'Jose', '17B44F59', 'Tag Pagado')
+        """)
+        conn.commit()
+        conn.close()
+        from db import init_db
+        init_db()
+        conn = get_db_connection()
+        tipos = [r[0] for r in conn.execute(
+            "SELECT DISTINCT tipo FROM tags_acceso WHERE edificio = 'Milano'").fetchall()]
+        total = conn.execute("SELECT COUNT(*) FROM tags_acceso WHERE edificio = 'Milano'").fetchone()[0]
+        conn.close()
+        self.assertEqual(tipos, ['Tag Pagado'], 'Debe quedar un solo tipo')
+        self.assertEqual(total, 2, 'Los registros no se eliminan, solo se unifica el tipo')
+
     def test_lectura_no_puede_importar(self):
         from auth import hash_password
         conn = get_db_connection()

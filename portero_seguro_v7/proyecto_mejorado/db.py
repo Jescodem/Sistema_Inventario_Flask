@@ -524,6 +524,17 @@ def init_db():
     conn.execute('CREATE INDEX IF NOT EXISTS idx_tags_acceso_edificio ON tags_acceso(edificio, departamento)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_tags_acceso_codigo ON tags_acceso(codigo)')
 
+    # Unifica variantes del mismo tipo de tag escritas distinto
+    # ("Tag pagado" vs "Tag Pagado"): los registros no se tocan, solo
+    # se corrige el texto del tipo al nombre canónico. Idempotente.
+    from tags_import import normalizar_tipo
+    for row in conn.execute(
+        "SELECT DISTINCT tipo FROM tags_acceso WHERE COALESCE(tipo, '') <> ''"
+    ).fetchall():
+        canonico = normalizar_tipo(row['tipo'])
+        if canonico != row['tipo']:
+            conn.execute('UPDATE tags_acceso SET tipo = ? WHERE tipo = ?', (canonico, row['tipo']))
+
     migrar_ubicaciones(conn)
     migrar_usuarios(conn)
 
