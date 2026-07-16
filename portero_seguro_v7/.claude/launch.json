@@ -4,7 +4,7 @@
     {
       "name": "real-app",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["C:/Users/DIANAG~1/AppData/Local/Temp/claude/C--Users-Diana-Gallardo-Desktop-JESUS-PROYECTOS-Sistema-Inventario-Flask-portero-seguro-v7/8d26725c-0a06-49f9-b874-baa3be2cc953/scratchpad/run_real.py"],
+      "runtimeArgs": ["C:/Users/PORTER~1/AppData/Local/Temp/claude/C--Users-Portero-Seguro-Desktop-BK-laptop-tec-Desktop-JESUS-PROYECTOS-Sistema-Inventario-Flask-portero-seguro-v7/503653e0-3e94-4eae-887f-8d37f692f1e9/scratchpad/run_real.py"],
       "port": 5099
     }
   ]

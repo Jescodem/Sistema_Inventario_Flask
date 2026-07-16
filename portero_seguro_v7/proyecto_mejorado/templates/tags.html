@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block title %}Tags y Tarjetas de Acceso | Portero Seguro{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="page-title"><i class="bi bi-credit-card-2-front"></i> Tags y Tarjetas de Acceso</h1>
+        <p class="page-subtitle">Registro global de tags/tarjetas entregados por edificio y departamento. La importación desde Excel elimina duplicados automáticamente.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="/exportar/tags" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-excel"></i> Exportar</a>
+        {% if rol_actual in ['admin', 'operador'] %}
+        <form action="/tags/depurar" method="POST" onsubmit="return confirm('¿Buscar y eliminar registros duplicados (mismo edificio, residente y código)? Se conserva el más antiguo.')">
+            <button class="btn btn-outline-secondary" title="Eliminar duplicados ya guardados"><i class="bi bi-eraser"></i> Depurar duplicados</button>
+        </form>
+        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalImportar">
+            <i class="bi bi-upload"></i> Importar Excel
+        </button>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoTag">
+            <i class="bi bi-plus-lg"></i> Nuevo registro
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="metric"><div class="metric-label">Total registros</div><div class="metric-value">{{ resumen.total }}</div></div></div>
+    <div class="col-6 col-md-3"><div class="metric"><div class="metric-label">Edificios</div><div class="metric-value">{{ resumen.edificios }}</div></div></div>
+    <div class="col-6 col-md-3"><div class="metric metric--ok"><div class="metric-label">Tags</div><div class="metric-value">{{ resumen.tags }}</div></div></div>
+    <div class="col-6 col-md-3"><div class="metric metric--warn"><div class="metric-label">Tarjetas</div><div class="metric-value">{{ resumen.tarjetas }}</div></div></div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label mb-1">Edificio</label>
+                <select name="edificio" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">Todos</option>
+                    {% for e in edificios %}<option value="{{ e }}" {% if e == f_edificio %}selected{% endif %}>{{ e }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label mb-1">Tipo</label>
+                <select name="tipo" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">Todos</option>
+                    {% for t in tipos %}<option value="{{ t }}" {% if t == f_tipo %}selected{% endif %}>{{ t }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label mb-1">Buscar</label>
+                <input name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Residente, código, departamento, N° tarjeta...">
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button class="btn btn-sm btn-primary flex-fill"><i class="bi bi-search"></i> Filtrar</button>
+                {% if f_edificio or f_tipo or q %}<a href="/tags" class="btn btn-sm btn-outline-secondary">Limpiar</a>{% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Vista global {% if f_edificio %}· {{ f_edificio }}{% endif %}</h5>
+        <span class="badge bg-primary">{{ registros|length }} registro(s)</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Edificio</th><th>Dpto.</th><th>Residente</th><th>Código</th>
+                    <th>N° tarjeta</th><th>Tipo</th><th>Fecha</th><th>Observaciones</th>
+                    {% if rol_actual in ['admin', 'operador'] %}<th class="text-end">Acciones</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in registros %}
+                {% set nuevo_edificio = loop.first or t.edificio != loop.previtem.edificio %}
+                <tr {% if nuevo_edificio and not loop.first %}style="border-top:2px solid var(--c-border2);"{% endif %}>
+                    <td>{% if nuevo_edificio %}<strong>{{ t.edificio or '(Sin edificio)' }}</strong>{% else %}<span class="text-muted" style="font-size:.78rem;">{{ t.edificio or '' }}</span>{% endif %}</td>
+                    <td>{{ t.departamento or '—' }}</td>
+                    <td>{{ t.residente or '—' }}</td>
+                    <td><span class="mono" style="font-size:.8rem;">{{ t.codigo }}</span></td>
+                    <td><span class="mono" style="font-size:.78rem;color:var(--c-muted);">{{ t.numero or '—' }}</span></td>
+                    <td>
+                        {% set tipo_u = (t.tipo or '')|upper %}
+                        {% if tipo_u.startswith('TARJETA') %}<span class="badge bg-warning">{{ t.tipo }}</span>
+                        {% elif 'MIGRADO' in tipo_u %}<span class="badge bg-info">{{ t.tipo }}</span>
+                        {% elif 'PAGADO' in tipo_u %}<span class="badge bg-success">{{ t.tipo }}</span>
+                        {% elif 'REGALO' in tipo_u %}<span class="badge bg-secondary">{{ t.tipo }}</span>
+                        {% elif t.tipo %}<span class="badge bg-primary">{{ t.tipo }}</span>
+                        {% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
+                    <td style="font-size:.8rem;color:var(--c-muted);white-space:nowrap;">{{ t.fecha|fecha_corta or '—' }}</td>
+                    <td style="font-size:.8rem;color:var(--c-muted);max-width:180px;">{{ t.observaciones or '' }}</td>
+                    {% if rol_actual in ['admin', 'operador'] %}
+                    <td class="text-end text-nowrap">
+                        <button class="btn btn-sm btn-outline-primary btn-editar-tag" title="Editar"
+                                data-id="{{ t.id }}" data-edificio="{{ t.edificio }}" data-departamento="{{ t.departamento or '' }}"
+                                data-residente="{{ t.residente or '' }}" data-codigo="{{ t.codigo }}" data-numero="{{ t.numero or '' }}"
+                                data-tipo="{{ t.tipo or '' }}" data-fecha="{{ t.fecha or '' }}" data-observaciones="{{ t.observaciones or '' }}">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <form action="/tags/eliminar/{{ t.id }}" method="POST" style="display:inline;"
+                              onsubmit="return confirm('¿Eliminar el tag {{ t.codigo }} de {{ t.residente or t.edificio }}?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="bi bi-trash"></i></button>
+                        </form>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr><td colspan="9" class="text-center py-5 text-muted">
+                    No hay tags registrados todavía.<br>
+                    <span style="font-size:.8rem;">Usa <strong>Importar Excel</strong> para cargar el archivo con los registros: los duplicados se eliminan solos.</span>
+                </td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if rol_actual in ['admin', 'operador'] %}
+<!-- Modal: importar Excel -->
+<div class="modal fade" id="modalImportar" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow">
+        <form action="/tags/importar" method="POST" enctype="multipart/form-data">
+            <div class="modal-header"><h5 class="modal-title">Importar tags desde Excel</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <label class="form-label fw-semibold">Archivo Excel (.xlsx)</label>
+                <input type="file" name="archivo" class="form-control" accept=".xlsx,.xlsm" required>
+                <div class="alert alert-info mt-3 mb-0" style="font-size:.8rem;">
+                    <i class="bi bi-info-circle"></i> El archivo debe tener una fila de encabezados con al menos
+                    <strong>EDIFICIO</strong> y <strong>CÓDIGO</strong> (se reconocen también DEPARTAMENTO,
+                    RESIDENTE, FECHA DE CREACIÓN y TIPO). Los registros repetidos —mismo edificio, departamento,
+                    residente y código— se omiten automáticamente, así puedes importar varios Excel con los
+                    mismos datos sin generar duplicados.
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary"><i class="bi bi-upload"></i> Importar</button></div>
+        </form>
+    </div></div>
+</div>
+
+<!-- Modal: nuevo registro -->
+<div class="modal fade" id="modalNuevoTag" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content border-0 shadow">
+        <form action="/tags" method="POST">
+            <div class="modal-header"><h5 class="modal-title">Nuevo tag / tarjeta</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label fw-semibold">Edificio</label>
+                        <input name="edificio" class="form-control" list="edificiosTagsList" required placeholder="Ej. Botanika"></div>
+                    <div class="col-md-3"><label class="form-label fw-semibold">Departamento</label>
+                        <input name="departamento" class="form-control" placeholder="Ej. 405"></div>
+                    <div class="col-md-3"><label class="form-label fw-semibold">Fecha</label>
+                        <input name="fecha" type="date" class="form-control"></div>
+                    <div class="col-md-6"><label class="form-label fw-semibold">Residente</label>
+                        <input name="residente" class="form-control" placeholder="Nombre del residente"></div>
+                    <div class="col-md-3"><label class="form-label fw-semibold">Código</label>
+                        <input name="codigo" class="form-control mono" required placeholder="Ej. 33B85AAF"></div>
+                    <div class="col-md-3"><label class="form-label fw-semibold">N° tarjeta <span class="text-muted">(opcional)</span></label>
+                        <input name="numero" class="form-control mono" placeholder="Ej. 1250829362"></div>
+                    <div class="col-md-4"><label class="form-label fw-semibold">Tipo</label>
+                        <input name="tipo" class="form-control" list="tiposTagsList" value="Tag"></div>
+                    <div class="col-md-8"><label class="form-label fw-semibold">Observaciones <span class="text-muted">(opcional)</span></label>
+                        <input name="observaciones" class="form-control" placeholder="Ej. se cambió, regalo..."></div>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary"><i class="bi bi-check-lg"></i> Registrar</button></div>
+        </form>
+    </div></div>
+</div>
+
+<!-- Modal: editar registro -->
+<div class="modal fade" id="modalEditarTag" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content border-0 shadow">
+        <form id="formEditarTag" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="modal-header"><h5 class="modal-title">Editar tag / tarjeta</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label fw-semibold">Edificio</label>
+                        <input name="edificio" id="editEdificio" class="form-control" list="edificiosTagsList" required></div>
+                    <div class="col-md-3"><label class="form-label fw-semibold">Departamento</label>
+                        <input name="departamento" id="editDepartamento" class="form-control"></div>
+                    <div class="col-md-3"><label class="form-label fw-semibold">Fecha</label>
+                        <input name="fecha" id="editFecha" class="form-control" placeholder="AAAA-MM-DD"></div>
+                    <div class="col-md-6"><label class="form-label fw-semibold">Residente</label>
+                        <input name="residente" id="editResidente" class="form-control"></div>
+                    <div class="col-md-3"><label class="form-label fw-semibold">Código</label>
+                        <input name="codigo" id="editCodigo" class="form-control mono" required></div>
+                    <div class="col-md-3"><label class="form-label fw-semibold">N° tarjeta</label>
+                        <input name="numero" id="editNumero" class="form-control mono"></div>
+                    <div class="col-md-4"><label class="form-label fw-semibold">Tipo</label>
+                        <input name="tipo" id="editTipo" class="form-control" list="tiposTagsList"></div>
+                    <div class="col-md-8"><label class="form-label fw-semibold">Observaciones</label>
+                        <input name="observaciones" id="editObservaciones" class="form-control"></div>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar cambios</button></div>
+        </form>
+    </div></div>
+</div>
+
+<datalist id="edificiosTagsList">{% for e in edificios %}<option value="{{ e }}">{% endfor %}</datalist>
+<datalist id="tiposTagsList">
+    <option value="Tag"><option value="Tarjeta"><option value="Tag Pagado">
+    <option value="Tag de Regalo"><option value="Tag Migrado"><option value="Tarjeta Blanca">
+    <option value="Tarjeta con números">
+</datalist>
+
+<script>
+(function(){
+    var modalEl = document.getElementById('modalEditarTag');
+    if(!modalEl || !window.bootstrap) return;
+    var modal = new bootstrap.Modal(modalEl);
+    document.querySelectorAll('.btn-editar-tag').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            var d = btn.dataset;
+            document.getElementById('formEditarTag').action = '/tags/editar/' + d.id;
+            document.getElementById('editEdificio').value = d.edificio;
+            document.getElementById('editDepartamento').value = d.departamento;
+            document.getElementById('editResidente').value = d.residente;
+            document.getElementById('editCodigo').value = d.codigo;
+            document.getElementById('editNumero').value = d.numero;
+            document.getElementById('editTipo').value = d.tipo;
+            document.getElementById('editFecha').value = d.fecha;
+            document.getElementById('editObservaciones').value = d.observaciones;
+            modal.show();
+        });
+    });
+})();
+</script>
+{% endif %}
+
+{% endblock %}

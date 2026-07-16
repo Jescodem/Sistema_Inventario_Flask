@@ -21,6 +21,7 @@ from db import (
     ensure_catalog_value, ensure_categoria_marca, ensure_modelo,
     inferir_categoria_marca_modelo,
 )
+import tags_import
 SECRET_KEY_FILE = os.path.join(BASE_DIR, '.secret_key')
 
 
@@ -194,6 +195,11 @@ ROUTE_ACCESS = {
     'actualizar_avance': 'operador',
     'eliminar_avance': 'operador',
     'herramientas_personal': {'GET': 'lectura', 'POST': 'operador'},
+    'tags_acceso': {'GET': 'lectura', 'POST': 'operador'},
+    'importar_tags': 'operador',
+    'depurar_tags': 'operador',
+    'editar_tag': 'operador',
+    'eliminar_tag': 'operador',
     'ver_entrega_herramienta': 'lectura',
     'devolver_entrega_herramienta': 'operador',
     'eliminar_entrega_herramienta': 'operador',
@@ -251,6 +257,16 @@ def inject_seguridad():
         usuario_actual=session.get('username'),
         rol_actual=session.get('rol'),
     )
+
+
+@app.template_filter('fecha_corta')
+def fecha_corta(valor):
+    """Muestra fechas ISO (YYYY-MM-DD) como DD/MM/YYYY; otro texto queda igual."""
+    valor = valor or ''
+    m = re.match(r'^(\d{4})-(\d{2})-(\d{2})', valor)
+    if m:
+        return f'{m.group(3)}/{m.group(2)}/{m.group(1)}'
+    return valor
 
 
 _RE_IPV4 = re.compile(r'^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$')
@@ -2633,6 +2649,20 @@ def exportar(tipo):
                 ORDER BY e.nombre, ei.orden, ei.id
             ''').fetchall()
 
+        elif tipo == 'tags':
+            titulo = 'Tags y tarjetas de acceso — Portero Seguro'
+            encabezados = ['Edificio', 'Departamento', 'Residente', 'Código',
+                           'N° tarjeta', 'Tipo', 'Fecha', 'Observaciones']
+            filas = conn.execute('''
+                SELECT edificio, COALESCE(departamento, ''), COALESCE(residente, ''),
+                       codigo, COALESCE(numero, ''), COALESCE(tipo, ''),
+                       COALESCE(fecha, ''), COALESCE(observaciones, '')
+                FROM tags_acceso
+                ORDER BY edificio COLLATE NOCASE,
+                         LENGTH(departamento), departamento COLLATE NOCASE,
+                         residente COLLATE NOCASE, id
+            ''').fetchall()
+
         else:
             abort(404)
 
@@ -3960,6 +3990,211 @@ def eliminar_entrega_herramienta(id):
     finally:
         conn.close()
     return redirect(url_for('herramientas_personal'))
+
+
+# ── Tags / tarjetas de acceso por edificio ──────────────────────────────────
+# Registro global de tags y tarjetas entregados a residentes, con carga
+# masiva desde Excel (deduplicada) y vista ordenada por edificio.
+
+@app.route('/tags', methods=['GET', 'POST'])
+def tags_acceso():
+    conn = get_db_connection()
+
+    if request.method == 'POST':
+        registro = {
+            'edificio': clean_text(request.form.get('edificio')),
+            'departamento': clean_text(request.form.get('departamento')),
+            'residente': clean_text(request.form.get('residente')),
+            'codigo': tags_import.normalizar_codigo(request.form.get('codigo')),
+            'numero': clean_text(request.form.get('numero')),
+            'tipo': clean_text(request.form.get('tipo')) or 'Tag',
+            'fecha': tags_import.parse_fecha(request.form.get('fecha')),
+            'observaciones': clean_text(request.form.get('observaciones')),
+        }
+        if not registro['edificio'] or not tags_import.es_codigo_valido(registro['codigo']):
+            flash('Complete al menos el edificio y un código válido.', 'danger')
+            conn.close()
+            return redirect(url_for('tags_acceso'))
+        try:
+            nuevos, duplicados = tags_import.importar_en_bd(conn, [registro])
+            conn.commit()
+            if nuevos:
+                flash('Tag registrado correctamente.', 'success')
+            else:
+                flash('Ese tag ya estaba registrado (mismo edificio, residente y código).', 'warning')
+        except Exception as e:
+            conn.rollback()
+            flash(f'Error registrando el tag: {e}', 'danger')
+        finally:
+            conn.close()
+        return redirect(url_for('tags_acceso'))
+
+    f_edificio = clean_text(request.args.get('edificio'))
+    f_tipo = clean_text(request.args.get('tipo'))
+    q = clean_text(request.args.get('q'))
+
+    query = 'SELECT * FROM tags_acceso WHERE 1 = 1'
+    params = []
+    if f_edificio:
+        query += ' AND edificio = ?'
+        params.append(f_edificio)
+    if f_tipo:
+        query += ' AND tipo = ?'
+        params.append(f_tipo)
+    if q:
+        query += ' AND (edificio LIKE ? OR departamento LIKE ? OR residente LIKE ? OR codigo LIKE ? OR numero LIKE ? OR observaciones LIKE ?)'
+        like = f'%{q}%'
+        params.extend([like] * 6)
+
+    registros = conn.execute(
+        query + '''
+        ORDER BY edificio COLLATE NOCASE,
+                 LENGTH(departamento), departamento COLLATE NOCASE,
+                 residente COLLATE NOCASE, id
+        ''', params
+    ).fetchall()
+
+    resumen = {
+        'total': conn.execute('SELECT COUNT(*) FROM tags_acceso').fetchone()[0],
+        'edificios': conn.execute(
+            "SELECT COUNT(DISTINCT edificio) FROM tags_acceso WHERE edificio <> ''"
+        ).fetchone()[0],
+        'tags': conn.execute(
+            "SELECT COUNT(*) FROM tags_acceso WHERE UPPER(tipo) LIKE 'TAG%' OR tipo = ''"
+        ).fetchone()[0],
+        'tarjetas': conn.execute(
+            "SELECT COUNT(*) FROM tags_acceso WHERE UPPER(tipo) LIKE 'TARJETA%'"
+        ).fetchone()[0],
+    }
+    edificios = [r['edificio'] for r in conn.execute(
+        "SELECT DISTINCT edificio FROM tags_acceso WHERE edificio <> '' ORDER BY edificio COLLATE NOCASE"
+    ).fetchall()]
+    tipos = [r['tipo'] for r in conn.execute(
+        "SELECT DISTINCT tipo FROM tags_acceso WHERE COALESCE(tipo, '') <> '' ORDER BY tipo COLLATE NOCASE"
+    ).fetchall()]
+    conn.close()
+    return render_template(
+        'tags.html', registros=registros, resumen=resumen,
+        edificios=edificios, tipos=tipos,
+        f_edificio=f_edificio, f_tipo=f_tipo, q=q,
+    )
+
+
+@app.route('/tags/importar', methods=['POST'])
+def importar_tags():
+    archivo = request.files.get('archivo')
+    if not archivo or not archivo.filename:
+        flash('Selecciona un archivo Excel (.xlsx) para importar.', 'danger')
+        return redirect(url_for('tags_acceso'))
+    if not archivo.filename.lower().endswith(('.xlsx', '.xlsm')):
+        flash('El archivo debe ser un Excel (.xlsx). Si está en otro formato, guárdalo como .xlsx.', 'danger')
+        return redirect(url_for('tags_acceso'))
+
+    try:
+        from openpyxl import load_workbook
+        wb = load_workbook(archivo, read_only=True, data_only=True)
+        registros, ignoradas = tags_import.extraer_registros(wb)
+        wb.close()
+    except ValueError as e:
+        flash(str(e), 'danger')
+        return redirect(url_for('tags_acceso'))
+    except Exception as e:
+        flash(f'No se pudo leer el archivo: {e}', 'danger')
+        return redirect(url_for('tags_acceso'))
+
+    conn = get_db_connection()
+    try:
+        nuevos, duplicados = tags_import.importar_en_bd(conn, registros)
+        conn.commit()
+        app.logger.info(
+            'Importacion de tags (%s): %s nuevos, %s duplicados, %s ignoradas, usuario=%s',
+            archivo.filename, nuevos, duplicados, ignoradas, session.get('username')
+        )
+        mensaje = f'Importación completada: {nuevos} registro(s) nuevo(s), {duplicados} duplicado(s) omitido(s).'
+        if ignoradas:
+            mensaje += f' Se ignoraron {ignoradas} fila(s) sin código válido.'
+        flash(mensaje, 'success' if nuevos else 'warning')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error importando los tags: {e}', 'danger')
+    finally:
+        conn.close()
+    return redirect(url_for('tags_acceso'))
+
+
+@app.route('/tags/depurar', methods=['POST'])
+def depurar_tags():
+    """Elimina duplicados ya existentes en la tabla (conserva el más antiguo)."""
+    conn = get_db_connection()
+    try:
+        eliminados = tags_import.depurar_duplicados(conn)
+        conn.commit()
+        if eliminados:
+            flash(f'Se eliminaron {eliminados} registro(s) duplicado(s).', 'success')
+        else:
+            flash('No se encontraron duplicados: la lista ya está limpia.', 'info')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error depurando duplicados: {e}', 'danger')
+    finally:
+        conn.close()
+    return redirect(url_for('tags_acceso'))
+
+
+@app.route('/tags/editar/<int:id>', methods=['POST'])
+def editar_tag(id):
+    conn = get_db_connection()
+    try:
+        actual = conn.execute('SELECT id FROM tags_acceso WHERE id = ?', (id,)).fetchone()
+        if not actual:
+            flash('El registro no existe.', 'warning')
+            conn.close()
+            return redirect(url_for('tags_acceso'))
+        codigo = tags_import.normalizar_codigo(request.form.get('codigo'))
+        if not tags_import.es_codigo_valido(codigo):
+            flash('El código no es válido.', 'danger')
+            conn.close()
+            return redirect(url_for('tags_acceso'))
+        conn.execute('''
+            UPDATE tags_acceso
+            SET edificio = ?, departamento = ?, residente = ?, codigo = ?,
+                numero = ?, tipo = ?, fecha = ?, observaciones = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (
+            clean_text(request.form.get('edificio')),
+            clean_text(request.form.get('departamento')),
+            clean_text(request.form.get('residente')),
+            codigo,
+            clean_text(request.form.get('numero')),
+            clean_text(request.form.get('tipo')),
+            tags_import.parse_fecha(request.form.get('fecha')),
+            clean_text(request.form.get('observaciones')),
+            id,
+        ))
+        conn.commit()
+        flash('Registro actualizado.', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error actualizando el registro: {e}', 'danger')
+    finally:
+        conn.close()
+    return redirect(url_for('tags_acceso'))
+
+
+@app.route('/tags/eliminar/<int:id>', methods=['POST'])
+def eliminar_tag(id):
+    conn = get_db_connection()
+    try:
+        conn.execute('DELETE FROM tags_acceso WHERE id = ?', (id,))
+        conn.commit()
+        flash('Registro eliminado.', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error eliminando el registro: {e}', 'danger')
+    finally:
+        conn.close()
+    return redirect(url_for('tags_acceso'))
 
 
 if __name__ == '__main__':

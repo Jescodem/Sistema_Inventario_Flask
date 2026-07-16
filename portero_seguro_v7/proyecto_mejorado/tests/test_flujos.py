@@ -163,5 +163,129 @@ class TestStockAtomico(unittest.TestCase):
         self.assertGreaterEqual(row['cantidad'], 0, 'Nunca debe quedar negativo')
 
 
+class TestTagsAcceso(BaseTestCase):
+    """Módulo de tags/tarjetas de acceso: alta, importación Excel y dedupe."""
+
+    def setUp(self):
+        super().setUp()
+        conn = get_db_connection()
+        conn.execute('DELETE FROM tags_acceso')
+        conn.commit()
+        conn.close()
+
+    def _post(self, ruta, data, **kwargs):
+        r = self.client.get('/tags')
+        token = extraer_csrf(r.get_data(as_text=True))
+        data = dict(data, csrf_token=token)
+        return self.client.post(ruta, data=data, follow_redirects=True, **kwargs)
+
+    def _excel_en_memoria(self, filas, encabezados=None):
+        """Construye un .xlsx en memoria imitando el archivo real de campo."""
+        import io
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['', '', '', ''])                       # filas basura arriba
+        ws.append(['', 'EDIFICIO', 'DEPARTAMENTO', 'RESIDENTE',
+                   'CÓDIGO', 'FECHA DE CREACIÓN', 'TIPO'] if encabezados is None else encabezados)
+        for fila in filas:
+            ws.append(fila)
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        return buf
+
+    def test_alta_manual_y_duplicado(self):
+        self.login()
+        r = self._post('/tags', {
+            'edificio': 'Botanika', 'departamento': '405',
+            'residente': 'Nathaly Gallegos Rojas', 'codigo': '33b85aaf',
+            'tipo': 'Tag', 'fecha': '2026-01-19',
+        })
+        self.assertIn('Tag registrado', r.get_data(as_text=True))
+        # El mismo registro otra vez → se detecta como duplicado
+        r2 = self._post('/tags', {
+            'edificio': 'botanika ', 'departamento': ' 405',
+            'residente': 'NATHALY GALLEGOS ROJAS', 'codigo': ' 33B85AAF ',
+            'tipo': 'Tag',
+        })
+        self.assertIn('ya estaba registrado', r2.get_data(as_text=True))
+        conn = get_db_connection()
+        total = conn.execute('SELECT COUNT(*) FROM tags_acceso').fetchone()[0]
+        codigo = conn.execute('SELECT codigo FROM tags_acceso').fetchone()[0]
+        conn.close()
+        self.assertEqual(total, 1)
+        self.assertEqual(codigo, '33B85AAF', 'El código se guarda normalizado en mayúsculas')
+
+    def test_importar_excel_sucio_deduplica(self):
+        self.login()
+        excel = self._excel_en_memoria([
+            [1, 'Botanika', '405', 'Nathaly Gallegos', '33B85AAF', '19/01/2026', 'Tag'],
+            [2, 'Sienna', '203', '203', '"E3425EAF\n"', '18/02/2026', 'Tag'],      # código sucio
+            [None, None, None, None, '00000000', None, None],                      # separador
+            [3, 'Acrux', '101', '101', '32248E4A', '9/03/2026', 'Tag', '1250829362'],  # nº decimal extra
+            [4, 'Padua', '203', '203', 'B7100B40', '20/02/2026', 'Tag', 'se cambio'],  # nota extra
+            [5, 'Botanika', '405', 'Nathaly Gallegos', '33B85AAF', '6/04/2026', 'Tag'],  # duplicado (otra fecha)
+        ])
+        r = self._post('/tags/importar', {'archivo': (excel, 'tags.xlsx')},
+                       content_type='multipart/form-data')
+        html = r.get_data(as_text=True)
+        self.assertIn('4 registro(s) nuevo(s)', html)
+        self.assertIn('1 duplicado(s)', html)
+
+        conn = get_db_connection()
+        filas = {f['codigo']: f for f in conn.execute('SELECT * FROM tags_acceso').fetchall()}
+        conn.close()
+        self.assertEqual(len(filas), 4)
+        self.assertIn('E3425EAF', filas, 'El código con comillas/saltos debe quedar limpio')
+        self.assertEqual(filas['32248E4A']['numero'], '1250829362')
+        self.assertEqual(filas['B7100B40']['observaciones'], 'se cambio')
+        self.assertEqual(filas['33B85AAF']['fecha'], '2026-01-19', 'Fecha normalizada a ISO')
+
+        # Re-importar el mismo archivo → todo son duplicados
+        excel2 = self._excel_en_memoria([
+            [1, 'Botanika', '405', 'Nathaly Gallegos', '33B85AAF', '19/01/2026', 'Tag'],
+        ])
+        r2 = self._post('/tags/importar', {'archivo': (excel2, 'tags2.xlsx')},
+                        content_type='multipart/form-data')
+        self.assertIn('0 registro(s) nuevo(s)', r2.get_data(as_text=True))
+
+    def test_importar_sin_encabezados_da_error_claro(self):
+        self.login()
+        excel = self._excel_en_memoria([[1, 2, 3]], encabezados=['A', 'B', 'C'])
+        r = self._post('/tags/importar', {'archivo': (excel, 'malo.xlsx')},
+                       content_type='multipart/form-data')
+        self.assertIn('encabezados reconocibles', r.get_data(as_text=True))
+
+    def test_depurar_elimina_duplicados_existentes(self):
+        self.login()
+        conn = get_db_connection()
+        for _ in range(3):
+            conn.execute('''
+                INSERT INTO tags_acceso (edificio, departamento, residente, codigo)
+                VALUES ('Amalfi', '1', '1', '52DA754A')
+            ''')
+        conn.commit()
+        conn.close()
+        r = self._post('/tags/depurar', {})
+        self.assertIn('2 registro(s) duplicado(s)', r.get_data(as_text=True))
+
+    def test_lectura_no_puede_importar(self):
+        from auth import hash_password
+        conn = get_db_connection()
+        conn.execute("""
+            INSERT OR IGNORE INTO usuarios
+                (username, password_hash, nombre_completo, rol, activo, debe_cambiar_password)
+            VALUES ('lector2', ?, 'Lector Tags', 'lectura', 1, 0)
+        """, (hash_password('Lectura123!'),))
+        conn.commit()
+        conn.close()
+        self.login('lector2', 'Lectura123!')
+        r = self.client.get('/tags')
+        self.assertEqual(r.status_code, 200, 'Lectura sí puede ver la lista')
+        r2 = self._post('/tags', {'edificio': 'X', 'codigo': 'ABC12345'})
+        self.assertIn('No tienes permisos', r2.get_data(as_text=True))
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

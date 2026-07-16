@@ -423,6 +423,25 @@ def init_db():
         )
     ''')
 
+    # Tags y tarjetas de acceso entregadas por edificio/departamento.
+    # Se cargan masivamente desde Excel (con deduplicacion automatica) o
+    # se registran una a una desde la pantalla /tags.
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS tags_acceso (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            edificio TEXT NOT NULL DEFAULT '',
+            departamento TEXT,
+            residente TEXT,
+            codigo TEXT NOT NULL,
+            numero TEXT,
+            tipo TEXT,
+            fecha TEXT,
+            observaciones TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP
+        )
+    ''')
+
     conn.execute('''
         CREATE TABLE IF NOT EXISTS avances_actividades (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -502,6 +521,8 @@ def init_db():
     conn.execute('CREATE INDEX IF NOT EXISTS idx_entregas_herr_estado ON entregas_herramientas(estado)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_entregas_herr_personal ON entregas_herramientas(personal)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_entrega_herr_detalle ON entrega_herramienta_detalle(entrega_id)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_tags_acceso_edificio ON tags_acceso(edificio, departamento)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_tags_acceso_codigo ON tags_acceso(codigo)')
 
     migrar_ubicaciones(conn)
     migrar_usuarios(conn)

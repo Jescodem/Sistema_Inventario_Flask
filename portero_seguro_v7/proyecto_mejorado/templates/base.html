@@ -265,7 +265,7 @@
 <body>
     {% set inventario_active = request.path in ['/', '/ingresos', '/ingreso_series', '/series', '/salidas', '/movimientos'] %}
     {% set guias_active = request.path == '/guias' or request.path.startswith('/listar_guias') or request.path.startswith('/guia/') or request.path.startswith('/editar_guia') %}
-    {% set operacion_active = request.path.startswith('/seguimiento') or request.path.startswith('/avances') or request.path.startswith('/edificios') %}
+    {% set operacion_active = request.path.startswith('/seguimiento') or request.path.startswith('/avances') or request.path.startswith('/edificios') or request.path.startswith('/tags') %}
     {% set admin_active = request.path.startswith('/personal') or request.path.startswith('/configuracion') or request.path.startswith('/usuarios') %}
 
     <!-- SIDEBAR -->
@@ -327,6 +327,9 @@
                 </a>
                 <a class="sb-item {% if request.path.startswith('/herramientas') %}is-active{% endif %}" href="/herramientas">
                     <i class="bi bi-tools"></i><span class="sb-label">Herramientas</span>
+                </a>
+                <a class="sb-item {% if request.path.startswith('/tags') %}is-active{% endif %}" href="/tags">
+                    <i class="bi bi-credit-card-2-front"></i><span class="sb-label">Tags / Accesos</span>
                 </a>
                 <a class="sb-item {% if request.path.startswith('/edificios') %}is-active{% endif %}" href="/edificios">
                     <i class="bi bi-buildings"></i><span class="sb-label">Edificios / Obras</span>
